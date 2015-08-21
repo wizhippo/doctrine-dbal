@@ -17,29 +17,38 @@
  * <http://www.doctrine-project.org>.
  */
 
-namespace Doctrine\DBAL\Driver\PDOSqlsrv;
-
-use Doctrine\DBAL\Driver\PDOConnection;
+namespace Doctrine\DBAL\Platforms\Keywords;
 
 /**
- * Sqlsrv Connection implementation.
+ * PostgreSQL 9.4 reserved keywords list.
  *
- * @since 2.0
+ * @author Matteo Beccati <matteo@beccati.com>
+ * @link   www.doctrine-project.org
+ * @since  2.6
  */
-class Connection extends PDOConnection implements \Doctrine\DBAL\Driver\Connection
+class PostgreSQL94Keywords extends PostgreSQL92Keywords
 {
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
-    public function quote($value, $type=\PDO::PARAM_STR)
+    public function getName()
     {
-        $val = parent::quote($value, $type);
+        return 'PostgreSQL94';
+    }
 
-        // Fix for a driver version terminating all values with null byte
-        if (strpos($val, "\0") !== false) {
-            $val = substr($val, 0, -1);
-        }
+    /**
+     * {@inheritdoc}
+     *
+     * @link http://www.postgresql.org/docs/9.4/static/sql-keywords-appendix.html
+     */
+    protected function getKeywords()
+    {
+        $parentKeywords = array_diff(parent::getKeywords(), array(
+            'OVER',
+        ));
 
-        return $val;
+        return array_merge($parentKeywords, array(
+            'LATERAL',
+        ));
     }
 }

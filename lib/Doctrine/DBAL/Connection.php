@@ -1093,7 +1093,7 @@ class Connection implements DriverConnection
      *
      * @param \Closure $func The function to execute transactionally.
      *
-     * @return void
+     * @return mixed The value returned by $func
      *
      * @throws \Exception
      */
@@ -1101,10 +1101,11 @@ class Connection implements DriverConnection
     {
         $this->beginTransaction();
         try {
-            $func($this);
+            $res = $func($this);
             $this->commit();
+            return $res;
         } catch (Exception $e) {
-            $this->rollback();
+            $this->rollBack();
             throw $e;
         }
     }
@@ -1268,7 +1269,7 @@ class Connection implements DriverConnection
                 $logger->startQuery('"ROLLBACK"');
             }
             $this->_transactionNestingLevel = 0;
-            $this->_conn->rollback();
+            $this->_conn->rollBack();
             $this->_isRollbackOnly = false;
             if ($logger) {
                 $logger->stopQuery();
@@ -1590,7 +1591,7 @@ class Connection implements DriverConnection
         }
 
         try {
-            $this->query($this->platform->getDummySelectSQL());
+            $this->query($this->getDatabasePlatform()->getDummySelectSQL());
 
             return true;
         } catch (DBALException $e) {

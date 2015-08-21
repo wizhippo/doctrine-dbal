@@ -17,29 +17,43 @@
  * <http://www.doctrine-project.org>.
  */
 
-namespace Doctrine\DBAL\Driver\PDOSqlsrv;
-
-use Doctrine\DBAL\Driver\PDOConnection;
+namespace Doctrine\DBAL\Platforms;
 
 /**
- * Sqlsrv Connection implementation.
+ * Provides the behavior, features and SQL dialect of the PostgreSQL 9.4 database platform.
  *
- * @since 2.0
+ * @author Matteo Beccati <matteo@beccati.com>
+ * @link   www.doctrine-project.org
+ * @since  2.6
  */
-class Connection extends PDOConnection implements \Doctrine\DBAL\Driver\Connection
+class PostgreSQL94Platform extends PostgreSQL92Platform
 {
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
-    public function quote($value, $type=\PDO::PARAM_STR)
+    public function getJsonTypeDeclarationSQL(array $field)
     {
-        $val = parent::quote($value, $type);
-
-        // Fix for a driver version terminating all values with null byte
-        if (strpos($val, "\0") !== false) {
-            $val = substr($val, 0, -1);
+        if (!empty($field['jsonb'])) {
+            return 'JSONB';
         }
 
-        return $val;
+        return 'JSON';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function getReservedKeywordsClass()
+    {
+        return 'Doctrine\DBAL\Platforms\Keywords\PostgreSQL94Keywords';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function initializeDoctrineTypeMappings()
+    {
+        parent::initializeDoctrineTypeMappings();
+        $this->doctrineTypeMapping['jsonb'] = 'json_array';
     }
 }
