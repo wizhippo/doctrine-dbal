@@ -17,19 +17,20 @@
  * <http://www.doctrine-project.org>.
  */
 
-namespace Doctrine\DBAL\Driver\Ibase\Firebird;
-
-use PDO;
-use IteratorAggregate;
-use Doctrine\DBAL\Driver\Statement;
+namespace Doctrine\DBAL\Platforms;
 
 /**
- * The Interbase/Firebird implementation of the Statement interface.
- * 
- * <b>This Driver/Platform is in Beta state</b>
- * 
+ * Platform implementation for Firebird 2.5 and higher
+ *
  * @author Andreas Prucha, Helicon Software Development <prucha@helicon.co.at>
  */
-class IbaseFirebirdStatement extends \Doctrine\DBAL\Driver\Ibase\AbstractIbaseStatement
+class IbasePlatform extends AbstractIbasePlatform
 {
+    /**
+     * {@inheritDoc}
+     */
+    public function getName()
+    {
+        return 'interbase';
+    }
 }

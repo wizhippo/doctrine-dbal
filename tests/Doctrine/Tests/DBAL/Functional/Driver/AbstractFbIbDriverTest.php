@@ -8,7 +8,7 @@ class AbstractFbIbDriverTest extends \Doctrine\Tests\DbalFunctionalTestCase
     {
         parent::setUp();
         
-        if ( ! $this->_conn->getDriver() instanceof \Doctrine\DBAL\Driver\AbstractFbIbDriver) {
+        if ( ! $this->_conn->getDriver() instanceof \Doctrine\DBAL\Driver\AbstractIbaseDriver) {
             $this->markTestSkipped('AbstractFbIbDriver connection only test.');
        }
 

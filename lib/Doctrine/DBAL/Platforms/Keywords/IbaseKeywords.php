@@ -1,5 +1,4 @@
 <?php
-
 /*
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -21,17 +20,15 @@
 namespace Doctrine\DBAL\Platforms\Keywords;
 
 /**
- * Keyword list for Firebird and Interbase
+ * Keyword list for Firebird/Interbase
  *
- * @license  BSD http://www.opensource.org/licenses/bsd-license.php
- * @author      Andreas Prucha <prucha@helicon.co.at>
+ * @author Andreas Prucha, Helicon Software Development <prucha@helicon.co.at>
  */
-class FbIbKeywords extends \Doctrine\DBAL\Platforms\Keywords\KeywordList
+class IbaseKeywords extends KeywordList
 {
-
     public function getName()
     {
-        return 'Firebird';
+        return 'Firebird/Interbase';
     }
 
     protected function getKeywords()
@@ -211,7 +208,6 @@ class FbIbKeywords extends \Doctrine\DBAL\Platforms\Keywords\KeywordList
             'RETURN',
             'SCROLL',
             'SQLSTATE',
-            );
+        );
     }
-
 }

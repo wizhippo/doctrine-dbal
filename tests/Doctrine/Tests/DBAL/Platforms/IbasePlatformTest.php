@@ -1,5 +1,4 @@
 <?php
-
 /*
  * To change this license header, choose License Headers in Project Properties.
  * To change this template file, choose Tools | Templates
@@ -9,25 +8,25 @@
 use Doctrine\DBAL\Schema\Table;
 
 /**
- * Description of FirebirdPlatformTest
- *
  * @author Andreas Prucha, Helicon Software Development
  */
-class FirebirdPlatformTest extends \Doctrine\Tests\DBAL\Platforms\AbstractPlatformTestCase
+class IbasePlatformTest extends \Doctrine\Tests\DBAL\Platforms\AbstractPlatformTestCase
 {
-
     /**
      * {@inheritdoc}
      */
     public function createPlatform()
     {
-        return new \Doctrine\DBAL\Platforms\FirebirdPlatform();
+        return new \Doctrine\DBAL\Platforms\IbasePlatform();
     }
 
     public function testReturnsIdentitySequenceName()
     {
-        $this->assertSame('table_with_too_long_naX5824_D2IS', $this->_platform->getIdentitySequenceName('table_with_too_long_name_to_combine', 'column_with_too_long_name_to_combine'));
-        $this->assertSame('table_with_too_long_naX5824_D2IS', $this->_platform->getIdentitySequenceName('table_with_too_long_name_to_combine', 'id'));
+        $this->assertSame('table_with_too_long_naX5824_D2IS',
+            $this->_platform->getIdentitySequenceName('table_with_too_long_name_to_combine',
+                'column_with_too_long_name_to_combine'));
+        $this->assertSame('table_with_too_long_naX5824_D2IS',
+            $this->_platform->getIdentitySequenceName('table_with_too_long_name_to_combine', 'id'));
         $this->assertSame('"QuotedTable_D2IS"', $this->_platform->getIdentitySequenceName('"QuotedTable"', 'id'));
     }
 
@@ -46,11 +45,16 @@ class FirebirdPlatformTest extends \Doctrine\Tests\DBAL\Platforms\AbstractPlatfo
         $this->assertSame('BLOB', $this->_platform->getBinaryTypeDeclarationSQL(array('length' => 16777216)));
 
         $this->assertSame('CHAR(255)', $this->_platform->getBinaryTypeDeclarationSQL(array('fixed' => true)));
-        $this->assertSame('CHAR(255)', $this->_platform->getBinaryTypeDeclarationSQL(array('fixed' => true, 'length' => 0)));
-        $this->assertSame('BLOB', $this->_platform->getBinaryTypeDeclarationSQL(array('fixed' => true, 'length' => 65535)));
-        $this->assertSame('BLOB', $this->_platform->getBinaryTypeDeclarationSQL(array('fixed' => true, 'length' => 65536)));
-        $this->assertSame('BLOB', $this->_platform->getBinaryTypeDeclarationSQL(array('fixed' => true, 'length' => 16777215)));
-        $this->assertSame('BLOB', $this->_platform->getBinaryTypeDeclarationSQL(array('fixed' => true, 'length' => 16777216)));
+        $this->assertSame('CHAR(255)',
+            $this->_platform->getBinaryTypeDeclarationSQL(array('fixed' => true, 'length' => 0)));
+        $this->assertSame('BLOB',
+            $this->_platform->getBinaryTypeDeclarationSQL(array('fixed' => true, 'length' => 65535)));
+        $this->assertSame('BLOB',
+            $this->_platform->getBinaryTypeDeclarationSQL(array('fixed' => true, 'length' => 65536)));
+        $this->assertSame('BLOB',
+            $this->_platform->getBinaryTypeDeclarationSQL(array('fixed' => true, 'length' => 16777215)));
+        $this->assertSame('BLOB',
+            $this->_platform->getBinaryTypeDeclarationSQL(array('fixed' => true, 'length' => 16777216)));
     }
 
     public function testGeneratesTableAlterationSql()
@@ -104,7 +108,7 @@ class FirebirdPlatformTest extends \Doctrine\Tests\DBAL\Platforms\AbstractPlatfo
         $comparator = new \Doctrine\DBAL\Schema\Comparator();
 
         $this->assertEquals(
-                $expectedSql, $this->_platform->getAlterTableSQL($comparator->diffTable($fromTable, $toTable))
+            $expectedSql, $this->_platform->getAlterTableSQL($comparator->diffTable($fromTable, $toTable))
         );
     }
 
@@ -166,7 +170,7 @@ class FirebirdPlatformTest extends \Doctrine\Tests\DBAL\Platforms\AbstractPlatfo
 
     protected function getGeneratesAlterTableRenameIndexUsedByForeignKeySQL()
     {
-        
+
     }
 
     /**
@@ -204,7 +208,7 @@ class FirebirdPlatformTest extends \Doctrine\Tests\DBAL\Platforms\AbstractPlatfo
 
     protected function getQuotesTableIdentifiersInAlterTableSQL()
     {
-        
+
     }
 
     public function getAlterTableRenameColumnSQL()
@@ -216,7 +220,7 @@ class FirebirdPlatformTest extends \Doctrine\Tests\DBAL\Platforms\AbstractPlatfo
 
     public function getGenerateAlterTableSql()
     {
-        
+
     }
 
     public function getGenerateIndexSql()
@@ -280,4 +284,11 @@ class FirebirdPlatformTest extends \Doctrine\Tests\DBAL\Platforms\AbstractPlatfo
         return 8190;
     }
 
+    /**
+     * @return string
+     */
+    protected function getQuotesReservedKeywordInTruncateTableSQL()
+    {
+        // TODO: Implement getQuotesReservedKeywordInTruncateTableSQL() method.
+    }
 }

@@ -1,5 +1,4 @@
 <?php
-
 /*
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -21,20 +20,10 @@
 namespace Doctrine\DBAL\Schema;
 
 /**
- * Schema manager for the Firebird and Interbase.
- * 
- * This implementation is based on the featureset of Firebird 2.5
- *
- * <b>This Driver/Platform is in Beta state</b>
- * 
- * <b>ATTENTION:</b> Because of the common hertiage of Firebird and Interbase, it should be possible to use
- * this SchemaManager for Interbase, but it's currently tested with Firebird Only.
- *
  * @author Andreas Prucha, Helicon Software Development <prucha@helicon.co.at>
  */
-class AbstractFbIbSchemaManager extends \Doctrine\DBAL\Schema\AbstractSchemaManager
+class IbaseSchemaManager extends AbstractSchemaManager
 {
-
     const META_FIELD_TYPE_CHAR = 14;
     const META_FIELD_TYPE_VARCHAR = 37;
     const META_FIELD_TYPE_CSTRING = 40;
@@ -62,7 +51,8 @@ class AbstractFbIbSchemaManager extends \Doctrine\DBAL\Schema\AbstractSchemaMana
     {
         $view = \array_change_key_case($view, CASE_LOWER);
 
-        return new \Doctrine\DBAL\Schema\View($this->getQuotedIdentifierName(trim($view['rdb$relation_name'])), $this->getQuotedIdentifierName(trim($view['rdb$view_source'])));
+        return new \Doctrine\DBAL\Schema\View($this->getQuotedIdentifierName(trim($view['rdb$relation_name'])),
+            $this->getQuotedIdentifierName(trim($view['rdb$view_source'])));
     }
 
     protected function _getPortableUserDefinition($user)
@@ -97,7 +87,7 @@ class AbstractFbIbSchemaManager extends \Doctrine\DBAL\Schema\AbstractSchemaMana
      *
      * @param string $identifier Identifier
      *
-     * @return string 
+     * @return string
      */
     private function getQuotedIdentifierName($identifier)
     {
@@ -114,18 +104,16 @@ class AbstractFbIbSchemaManager extends \Doctrine\DBAL\Schema\AbstractSchemaMana
      * The database type is mapped to a corresponding Doctrine mapping type.
      *
      * @param $tableColumn
+     *
      * @return array
+     * @throws \Doctrine\DBAL\DBALException
      */
     protected function _getPortableTableColumnDefinition($tableColumn)
     {
 
         $options = array();
-
         $tableColumn = array_change_key_case($tableColumn, CASE_UPPER);
-
         $dbType = strtolower($tableColumn['FIELD_TYPE_NAME']);
-
-        $type = array();
         $fixed = null;
 
         if (!isset($tableColumn['FIELD_NAME'])) {
@@ -142,7 +130,8 @@ class AbstractFbIbSchemaManager extends \Doctrine\DBAL\Schema\AbstractSchemaMana
         $type = $this->_platform->getDoctrineTypeMapping($dbType);
 
         switch ($tableColumn['FIELD_TYPE']) {
-            case self::META_FIELD_TYPE_CHAR: {
+            case self::META_FIELD_TYPE_CHAR:
+                {
                     $fixed = true;
                     break;
                 }
@@ -150,7 +139,8 @@ class AbstractFbIbSchemaManager extends \Doctrine\DBAL\Schema\AbstractSchemaMana
             case self::META_FIELD_TYPE_LONG:
             case self::META_FIELD_TYPE_INT64:
             case self::META_FIELD_TYPE_DOUBLE:
-            case self::META_FIELD_TYPE_FLOAT: {
+            case self::META_FIELD_TYPE_FLOAT:
+                {
                     // Firebirds reflection of the datatype is quite "creative": If a numeric or decimal field is defined,
                     // the field-type reflects the internal datattype (e.g, and sub_type specifies, if decimal or numeric
                     // has been used. Thus, we need to override the datatype if necessary.
@@ -160,33 +150,33 @@ class AbstractFbIbSchemaManager extends \Doctrine\DBAL\Schema\AbstractSchemaMana
                     $options['length'] = null;
                     break;
                 }
-            case self::META_FIELD_TYPE_BLOB: {
+            case self::META_FIELD_TYPE_BLOB:
+                {
                     switch ($tableColumn['FIELD_SUB_TYPE']) {
-                        case 1: {
+                        case 1:
+                            {
                                 $type = 'text';
                                 break;
                             }
                     }
                 }
         }
-        
+
         // Detect binary field by checking the characterset
-        if ($tableColumn['CHARACTER_SET_NAME'] == 'OCTETS')
-        {
+        if ($tableColumn['CHARACTER_SET_NAME'] == 'OCTETS') {
             $type = 'binary';
         }
 
         // Override detected type if a type hint is specified
 
         $type = $this->extractDoctrineTypeFromComment($tableColumn['FIELD_DESCRIPTION'], $type);
-        
+
         if ($tableColumn['FIELD_DESCRIPTION'] !== null) {
             $options['comment'] = $this->removeDoctrineTypeFromComment($tableColumn['FIELD_DESCRIPTION'], $type);
-            if ($options['comment'] === '')
+            if ($options['comment'] === '') {
                 $options['comment'] = null;
+            }
         }
-        
-
 
         if (preg_match('/^.*default\s*\'(.*)\'\s*$/i', $tableColumn['FIELD_DEFAULT_SOURCE'], $matches)) {
             // default definition is a string
@@ -203,14 +193,13 @@ class AbstractFbIbSchemaManager extends \Doctrine\DBAL\Schema\AbstractSchemaMana
             }
         }
 
-        $options['notnull'] = (bool) $tableColumn['FIELD_NOT_NULL_FLAG'];
-
+        $options['notnull'] = (bool)$tableColumn['FIELD_NOT_NULL_FLAG'];
         $options = array_merge($options, array(
-            'unsigned' => (bool) (strpos($dbType, 'unsigned') !== false),
-            'fixed' => (bool) $fixed,
-            'scale' => null,
-            'precision' => null,
-                )
+                'unsigned' => (bool)(strpos($dbType, 'unsigned') !== false),
+                'fixed' => (bool)$fixed,
+                'scale' => null,
+                'precision' => null,
+            )
         );
 
         if ($scale !== null && $precision !== null) {
@@ -218,7 +207,8 @@ class AbstractFbIbSchemaManager extends \Doctrine\DBAL\Schema\AbstractSchemaMana
             $options['precision'] = $precision;
         }
 
-        return new \Doctrine\DBAL\Schema\Column($tableColumn['FIELD_NAME'], \Doctrine\DBAL\Types\Type::getType($type), $options);
+        return new \Doctrine\DBAL\Schema\Column($tableColumn['FIELD_NAME'], \Doctrine\DBAL\Types\Type::getType($type),
+            $options);
     }
 
     protected function _getPortableTableForeignKeysList($tableForeignKeys)
@@ -244,16 +234,17 @@ class AbstractFbIbSchemaManager extends \Doctrine\DBAL\Schema\AbstractSchemaMana
                 );
             }
             $list[$value['constraint_name']]['local'][] = strtolower($value['field_name']);
-			$list[$value['constraint_name']]['foreign'][] = strtolower($value['references_field']);
+            $list[$value['constraint_name']]['foreign'][] = strtolower($value['references_field']);
         }
 
         $result = array();
         foreach ($list as $constraint) {
             $result[] = new \Doctrine\DBAL\Schema\ForeignKeyConstraint(
-                    array_values($constraint['local']), $constraint['foreignTable'], array_values($constraint['foreign']), $constraint['name'], array(
-                'onDelete' => $constraint['onDelete'],
-                'onUpdate' => $constraint['onUpdate'],
-                    )
+                array_values($constraint['local']), $constraint['foreignTable'], array_values($constraint['foreign']),
+                $constraint['name'], array(
+                    'onDelete' => $constraint['onDelete'],
+                    'onUpdate' => $constraint['onUpdate'],
+                )
             );
         }
 
@@ -266,27 +257,22 @@ class AbstractFbIbSchemaManager extends \Doctrine\DBAL\Schema\AbstractSchemaMana
         foreach ($tableIndexes as $tableIndex) {
 
             $tableIndex = \array_change_key_case($tableIndex, CASE_LOWER);
-            
-            if (!$tableIndex['foreign_key'])
-            {
 
-            $mangledItem = $tableIndex;
+            if (!$tableIndex['foreign_key']) {
+                $mangledItem = $tableIndex;
+                $mangledItem['key_name'] = !empty($tableIndex['constraint_name']) ? $tableIndex['constraint_name'] : $tableIndex['index_name'];
+                $mangledItem['non_unique'] = !(bool)$tableIndex['unique_flag'];
+                $mangledItem['primary'] = ($tableIndex['constraint_type'] == 'PRIMARY KEY');
 
-            $mangledItem['key_name'] = !empty($tableIndex['constraint_name']) ? $tableIndex['constraint_name'] : $tableIndex['index_name'];
+                if ($tableIndex['index_type']) {
+                    $mangledItem['options']['descending'] = true;
+                }
 
-            $mangledItem['non_unique'] = !(bool) $tableIndex['unique_flag'];
-
-            $mangledItem['primary'] = ($tableIndex['constraint_type'] == 'PRIMARY KEY');
-
-            if ($tableIndex['index_type']) {
-                $mangledItem['options']['descending'] = true;
-            }
-
-            $mangledItem['column_name'] = strtolower($tableIndex['field_name']);
-
-            $mangledData[] = $mangledItem;
+                $mangledItem['column_name'] = strtolower($tableIndex['field_name']);
+                $mangledData[] = $mangledItem;
             }
         }
+
         return parent::_getPortableTableIndexesList($mangledData, $tableName);
     }
 }
