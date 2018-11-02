@@ -40,10 +40,6 @@ class Driver extends AbstractIbaseDriver
                 $username,
                 $password,
                 $params['charset'] ?? null,
-                $params['buffers'] ?? null,
-                $params['dialect'] ?? null,
-                $params['role'] ?? null,
-                $params['sync'] ?? null,
                 $params['persistent'] ?? false,
                 $driverOptions
             );

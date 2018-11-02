@@ -22,6 +22,7 @@ namespace Doctrine\DBAL\Driver\Ibase;
 use Doctrine\DBAL\Driver\Statement;
 use Doctrine\DBAL\Driver\StatementIterator;
 use Doctrine\DBAL\FetchMode;
+use Doctrine\DBAL\SQLParserUtils;
 use function array_key_exists;
 use function array_merge;
 use function array_unshift;
@@ -115,11 +116,20 @@ class IbaseStatement implements \IteratorAggregate, Statement
     public function __construct(IbaseConnection $connection, $statement)
     {
         $this->connection = $connection;
-        $this->statementResource = @ibase_prepare(
-            $this->connection->getTransactionResource(),
-            $statement
-        );
-        is_resource($this->statementResource) || $this->checkLastApiCallAndThrowOnError();
+        // `ibase_prepare` does not return a resource if no parameters are used so use `ibase_query` instead in that case
+        $placeholderPositions = SQLParserUtils::getPlaceholderPositions($statement);
+        if (count($placeholderPositions)) {
+            $this->statementResource = @ibase_prepare(
+                $this->connection->getTransaction(),
+                $statement
+            );
+            if (!is_resource($this->statementResource)) {
+                $this->checkLastApiCallAndThrowOnError();
+                throw new IbaseException('ibase_prepare did not return a resource');
+            }
+        } else {
+            $this->statementResource = $statement;
+        }
     }
 
     public function __destruct()
@@ -208,24 +218,34 @@ class IbaseStatement implements \IteratorAggregate, Statement
      */
     public function execute($params = null)
     {
-        if ($params) {
-            $hasZeroIndex = array_key_exists(0, $params);
-            foreach ($params as $key => $val) {
-                $key = ($hasZeroIndex && is_numeric($key)) ? $key + 1 : $key;
-                $this->bindValue($key, $val);
+        if (!is_resource($this->statementResource)) {
+            if ($params !== null) {
+                throw new IbaseException('Not expecting any parameters');
+            }
+            $this->resultResource = @call_user_func_array(
+                'ibase_query',
+                [$this->connection->getTransaction(), $this->statementResource]
+            );
+        } else {
+            if ($params) {
+                $hasZeroIndex = array_key_exists(0, $params);
+                foreach ($params as $key => $val) {
+                    $key = ($hasZeroIndex && is_numeric($key)) ? $key + 1 : $key;
+                    $this->bindValue($key, $val);
+                }
+            }
+
+            $callArgs = $this->paramBindings;
+            array_unshift($callArgs, $this->statementResource);
+
+            $this->resultResource = @call_user_func_array('ibase_execute', $callArgs);
+            if ($this->resultResource === false) {
+                $this->checkLastApiCallAndThrowOnError();
             }
         }
 
-        $callArgs = $this->paramBindings;
-        array_unshift($callArgs, $this->statementResource);
-
-        $this->resultResource = @call_user_func_array('ibase_execute', $callArgs);
-        if ($this->resultResource === false) {
-            $this->checkLastApiCallAndThrowOnError();
-        }
-
         if (is_resource($this->resultResource)) {
-            $this->affectedRows = ibase_affected_rows($this->connection->getTransactionResource());
+            $this->affectedRows = ibase_affected_rows($this->connection->getTransaction());
             $this->numFields = @ibase_num_fields($this->resultResource);
         } elseif (is_numeric($this->resultResource)) {
             $this->affectedRows = $this->resultResource;
@@ -237,7 +257,7 @@ class IbaseStatement implements \IteratorAggregate, Statement
             $this->resultResource = false;
         }
 
-        $this->connection->doAutoCommitIfEnabled();
+        $this->connection->doAutoCommitIfNeeded();
 
         return true;
     }
@@ -399,7 +419,8 @@ class IbaseStatement implements \IteratorAggregate, Statement
         if (!is_string($destinationClass)) {
             if (!is_object($destinationClass)) {
                 throw new IbaseException(sprintf(
-                    'Destination class has to be of type string or object, %s given.', gettype($destinationClass)
+                    'Destination class has to be of type string or object, %s given.',
+                    gettype($destinationClass)
                 ));
             }
         } else {
@@ -407,7 +428,9 @@ class IbaseStatement implements \IteratorAggregate, Statement
                 $destinationClass = new \ReflectionClass($destinationClass);
             } catch (\ReflectionException $e) {
                 throw new IbaseException(sprintf(
-                    "Unable to cast to object of type '%s'. %s", gettype($destinationClass), $e->getMessage()
+                    "Unable to cast to object of type '%s'. %s",
+                    gettype($destinationClass),
+                    $e->getMessage()
                 ));
             }
 

@@ -61,37 +61,33 @@ class IbaseConnection implements Connection, ServerInfoAwareConnection
     /**
      * @var resource Connection resource
      */
-    private $connectionResource;
+    private $connection;
 
     /**
      * @var resource Transaction resource
      */
-    private $transactionResource;
+    private $transaction;
 
     /**
      * @var int Isolation level to use when a transaction is started
      */
-    private $attrTransactionIsolationLevel = TransactionIsolationLevel::READ_COMMITTED;
+    private $transactionIsolationLevel = TransactionIsolationLevel::READ_COMMITTED;
 
     /**
      * @var int Number of seconds to wait.
      */
-    private $attrTransactionWait = 5;
+    private $transactionWait = 5;
 
     /**
      * @var boolean
      */
-    private $attrAutoCommit = true;
+    private $inAutoCommitTransaction;
 
     /**
      * @param array       $params
      * @param string      $username
      * @param string      $password
      * @param string|null $charset
-     * @param int|null    $buffers
-     * @param int|null    $dialect
-     * @param string|null $role
-     * @param string|null $sync
      * @param bool        $persistent
      * @param array       $driverOptions
      *
@@ -102,10 +98,6 @@ class IbaseConnection implements Connection, ServerInfoAwareConnection
         $username,
         $password,
         $charset = null,
-        $buffers = null,
-        $dialect = null,
-        $role = null,
-        $sync = null,
         $persistent = false,
         array $driverOptions = []
     ) {
@@ -113,9 +105,14 @@ class IbaseConnection implements Connection, ServerInfoAwareConnection
         $port = $params['port'] ?? 3050;
         $dbname = $params['dbname'] ?? 'example.ib';
         $dbs = $this->formatDbConnString($host, $port, $dbname);
+        $buffers = $driverOptions['buffers'] ?? null;
+        $dialect = $driverOptions['dialect'] ?? null;
+        $role = $driverOptions['role'] ?? null;
+        $sync = $driverOptions['sync'] ?? null;
+
         $this->setDriverOptions($driverOptions);
 
-        $this->connectionResource = $persistent ?
+        $this->connection = $persistent ?
             @ibase_pconnect(
                 $dbs,
                 $username,
@@ -136,13 +133,17 @@ class IbaseConnection implements Connection, ServerInfoAwareConnection
                 $sync
             );
 
-        if (!is_resource($this->connectionResource)) {
+        if (!is_resource($this->connection)) {
             $this->checkLastApiCallAndThrowOnError();
         }
 
-        if ($this->attrAutoCommit) {
-            $this->beginTransaction();
-        }
+        // dbal assumes driver is in autocommit by default, ibase does not autocommit by default.
+        // https://github.com/doctrine/dbal/blob/82fd5d66904a79f10ed7aad4138e8c50606ab9d4/lib/Doctrine/DBAL/Configuration.php#L156
+        $this->transaction = @ibase_query(
+            $this->connection,
+            $this->getStartTransactionSql($this->transactionIsolationLevel)
+        );
+        $this->inAutoCommitTransaction = true;
     }
 
     /**
@@ -150,30 +151,27 @@ class IbaseConnection implements Connection, ServerInfoAwareConnection
      */
     public function __destruct()
     {
-        $this->doAutoCommitIfEnabled();
-        is_resource($this->transactionResource) && $this->rollback();
-        @ibase_close($this->connectionResource);
+        $this->doAutoCommitIfNeeded();
+        is_resource($this->transaction) && $this->rollback();
+        @ibase_close($this->connection);
     }
 
     /**
-     * Returns the current transaction resource or false
+     * Returns the current transaction resource
      *
-     * @return resource|false
+     * @return resource|null
      */
-    public function getTransactionResource()
+    public function getTransaction()
     {
-        return $this->transactionResource;
+        return $this->transaction;
     }
 
     /**
      * {@inheritdoc}
-     *
-     * @throws \UnexpectedValueException if the version string returned by the database server does not contain a
-     * parsible version number.
      */
     public function getServerVersion()
     {
-        return ibase_server_info($this->connectionResource, IBASE_SVC_SERVER_VERSION);
+        return ibase_server_info($this->connection, IBASE_SVC_SERVER_VERSION);
     }
 
     /**
@@ -188,6 +186,7 @@ class IbaseConnection implements Connection, ServerInfoAwareConnection
      * {@inheritDoc}
      *
      * @return \Doctrine\DBAL\Driver\Ibase\IbaseStatement
+     * @throws \Doctrine\DBAL\Driver\Ibase\IbaseException
      */
     public function prepare($prepareString)
     {
@@ -284,18 +283,13 @@ class IbaseConnection implements Connection, ServerInfoAwareConnection
         foreach ($driverOptions as $option => $value) {
             switch ($option) {
                 case self::ATTR_DOCTRINE_DEFAULT_TRANS_ISOLATION_LEVEL:
-                    $this->attrTransactionIsolationLevel = $value;
+                    $this->transactionIsolationLevel = $value;
                     break;
                 case self::ATTR_DOCTRINE_DEFAULT_TRANS_WAIT:
-                    $this->attrTransactionWait = $value;
-                    break;
-                case \PDO::ATTR_AUTOCOMMIT:
-                    $this->attrAutoCommit = $value;
+                    $this->transactionWait = $value;
                     break;
                 default:
-                    throw new IbaseException(
-                        sprintf("Unsupported option '%s' with value '%s'", $option, $value)
-                    );
+                    // Ignore
             }
         }
     }
@@ -325,9 +319,9 @@ class IbaseConnection implements Connection, ServerInfoAwareConnection
                 throw new IbaseException(sprintf("Unsupported transaction isolation level '%i'"));
         }
 
-        if ($this->attrTransactionWait > 0) {
-            $sql .= ' WAIT LOCK TIMEOUT ' . $this->attrTransactionWait;
-        } elseif ($this->attrTransactionWait === -1) {
+        if ($this->transactionWait > 0) {
+            $sql .= ' WAIT LOCK TIMEOUT ' . $this->transactionWait;
+        } elseif ($this->transactionWait === -1) {
             $sql .= ' WAIT';
         } else {
             $sql .= ' NO WAIT';
@@ -343,14 +337,17 @@ class IbaseConnection implements Connection, ServerInfoAwareConnection
      */
     public function beginTransaction()
     {
-        if (!is_resource($this->transactionResource)) {
-            $this->transactionResource = @ibase_query(
-                $this->connectionResource,
-                $this->getStartTransactionSql($this->attrTransactionIsolationLevel)
-            );
-            if (!is_resource($this->transactionResource)) {
-                $this->checkLastApiCallAndThrowOnError();
-            }
+        if ($this->inAutoCommitTransaction) {
+            $this->commit();
+            $this->inAutoCommitTransaction = false;
+        }
+
+        $this->transaction = @ibase_query(
+            $this->connection,
+            $this->getStartTransactionSql($this->transactionIsolationLevel)
+        );
+        if (!is_resource($this->transaction)) {
+            $this->checkLastApiCallAndThrowOnError();
         }
 
         return true;
@@ -363,12 +360,12 @@ class IbaseConnection implements Connection, ServerInfoAwareConnection
      */
     public function commit()
     {
-        if (!is_resource($this->transactionResource)) {
-            throw new IbaseException('No transaction to commit');
-        }
-
-        @ibase_commit($this->transactionResource) || $this->checkLastApiCallAndThrowOnError();
-        $this->transactionResource = false;
+        @ibase_commit($this->transaction) || $this->checkLastApiCallAndThrowOnError();
+        $this->transaction = @ibase_query(
+            $this->connection,
+            $this->getStartTransactionSql($this->transactionIsolationLevel)
+        );
+        $this->inAutoCommitTransaction = true;
 
         return true;
     }
@@ -380,12 +377,12 @@ class IbaseConnection implements Connection, ServerInfoAwareConnection
      */
     public function rollback()
     {
-        if (!is_resource($this->transactionResource)) {
-            throw new IbaseException('No transaction to rollback');
-        }
-
-        @ibase_rollback($this->transactionResource) || $this->checkLastApiCallAndThrowOnError();
-        $this->transactionResource = false;
+        @ibase_rollback($this->transaction) || $this->checkLastApiCallAndThrowOnError();
+        $this->transaction = @ibase_query(
+            $this->connection,
+            $this->getStartTransactionSql($this->transactionIsolationLevel)
+        );
+        $this->inAutoCommitTransaction = true;
 
         return true;
     }
@@ -393,17 +390,11 @@ class IbaseConnection implements Connection, ServerInfoAwareConnection
     /**
      * @throws \Doctrine\DBAL\Driver\Ibase\IbaseException
      */
-    public function doAutoCommitIfEnabled()
+    public function doAutoCommitIfNeeded()
     {
-        if (!$this->attrAutoCommit) {
-            return;
+        if ($this->inAutoCommitTransaction) {
+            @ibase_commit_ret($this->transaction) || $this->checkLastApiCallAndThrowOnError();
         }
-
-        if (!is_resource($this->transactionResource)) {
-            throw new IbaseException('No transaction to commit');
-        }
-
-        @ibase_commit_ret($this->transactionResource) || $this->checkLastApiCallAndThrowOnError();
     }
 
     /**
