@@ -108,14 +108,21 @@ class IbaseStatement implements \IteratorAggregate, Statement
     private $numFields = false;
 
     /**
+     * @var boolean
+     */
+    private $convertUTF8 = false;
+
+    /**
      * @param IbaseConnection $connection
      * @param string          $statement
+     * @param bool            $convertUTF8
      *
      * @throws \Doctrine\DBAL\Driver\Ibase\IbaseException
      */
-    public function __construct(IbaseConnection $connection, $statement)
+    public function __construct(IbaseConnection $connection, $statement, $convertUTF8 = false)
     {
         $this->connection = $connection;
+        $this->convertUTF8 = $convertUTF8;
         // `ibase_prepare` does not return a resource if no parameters are used so use `ibase_query` instead in that case
         $placeholderPositions = SQLParserUtils::getPlaceholderPositions($statement);
         if (count($placeholderPositions)) {
@@ -285,9 +292,12 @@ class IbaseStatement implements \IteratorAggregate, Statement
 
         switch ($fetchMode) {
             case FetchMode::COLUMN:
-                return $this->fetchColumn();
+                $result = @ibase_fetch_row($this->resultResource, self::FETCH_FLAG);
+                $result = $result === false ? false : $result[0];
+                break;
             case FetchMode::STANDARD_OBJECT:
-                return @ibase_fetch_object($this->resultResource, self::FETCH_FLAG);
+                $result = @ibase_fetch_object($this->resultResource, self::FETCH_FLAG);
+                break;
             case FetchMode::CUSTOM_OBJECT:
                 $className = $this->defaultFetchClass;
                 $ctorArgs = $this->defaultFetchClassCtorArgs;
@@ -304,18 +314,26 @@ class IbaseStatement implements \IteratorAggregate, Statement
                     $result = $this->castObject($result, $className, $ctorArgs);
                 }
 
-                return $result;
+                break;
             case FetchMode::ASSOCIATIVE:
-                return @ibase_fetch_assoc($this->resultResource, self::FETCH_FLAG);
+                $result = @ibase_fetch_assoc($this->resultResource, self::FETCH_FLAG);
+                break;
             case FetchMode::NUMERIC:
-                return @ibase_fetch_row($this->resultResource, self::FETCH_FLAG);
+                $result = @ibase_fetch_row($this->resultResource, self::FETCH_FLAG);
+                break;
             case FetchMode::MIXED:
-                $tmpData = ibase_fetch_assoc($this->resultResource, self::FETCH_FLAG);
-
-                return $tmpData === false ? false : array_merge(array_values($tmpData), $tmpData);
+                $result = @ibase_fetch_assoc($this->resultResource, self::FETCH_FLAG);
+                $result = $result === false ? false : array_merge(array_values($result), $result);
+                break;
             default:
                 throw new IbaseException(sprintf("Fetch mode '%s' not supported by this driver", $fetchMode));
         }
+
+        if ($this->convertUTF8 && $result) {
+            $result = $this->convertCharsetNoneToUTF($result);
+        }
+
+        return $result;
     }
 
     /**
@@ -475,5 +493,24 @@ class IbaseStatement implements \IteratorAggregate, Statement
         }
 
         return $destinationClass;
+    }
+
+    /**
+     * used when utf stored in charset none
+     *
+     * @param $row
+     *
+     * @return mixed
+     */
+    private function convertCharsetNoneToUTF($row)
+    {
+        foreach ($row as $key => &$value) {
+            // TODO:  May need to be more complete here for all datatypes
+            if (is_string($value)) {
+                $value = mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+            }
+        }
+
+        return $row;
     }
 }

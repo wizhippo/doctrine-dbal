@@ -84,6 +84,11 @@ class IbaseConnection implements Connection, ServerInfoAwareConnection
     private $inAutoCommitTransaction;
 
     /**
+     * @var boolean
+     */
+    private $convertUTF8 = false;
+
+    /**
      * @param array       $params
      * @param string      $username
      * @param string      $password
@@ -109,6 +114,7 @@ class IbaseConnection implements Connection, ServerInfoAwareConnection
         $dialect = $driverOptions['dialect'] ?? null;
         $role = $driverOptions['role'] ?? null;
         $sync = $driverOptions['sync'] ?? null;
+        $this->convertUTF8 = $driverOptions['convertUTF8'] ?? false;
 
         $this->setDriverOptions($driverOptions);
 
@@ -190,7 +196,7 @@ class IbaseConnection implements Connection, ServerInfoAwareConnection
      */
     public function prepare($prepareString)
     {
-        return new IbaseStatement($this, $prepareString);
+        return new IbaseStatement($this, $prepareString, $this->convertUTF8);
     }
 
     /**
