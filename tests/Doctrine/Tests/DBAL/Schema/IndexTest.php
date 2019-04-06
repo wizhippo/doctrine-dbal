@@ -3,21 +3,22 @@
 namespace Doctrine\Tests\DBAL\Schema;
 
 use Doctrine\DBAL\Schema\Index;
+use PHPUnit\Framework\TestCase;
 
-class IndexTest extends \PHPUnit\Framework\TestCase
+class IndexTest extends TestCase
 {
-    public function createIndex($unique = false, $primary = false, $options = array())
+    public function createIndex($unique = false, $primary = false, $options = [])
     {
-        return new Index("foo", array("bar", "baz"), $unique, $primary, array(), $options);
+        return new Index('foo', ['bar', 'baz'], $unique, $primary, [], $options);
     }
 
     public function testCreateIndex()
     {
         $idx = $this->createIndex();
-        self::assertEquals("foo", $idx->getName());
+        self::assertEquals('foo', $idx->getName());
         $columns = $idx->getColumns();
         self::assertCount(2, $columns);
-        self::assertEquals(array("bar", "baz"), $columns);
+        self::assertEquals(['bar', 'baz'], $columns);
         self::assertFalse($idx->isUnique());
         self::assertFalse($idx->isPrimary());
     }
@@ -69,7 +70,7 @@ class IndexTest extends \PHPUnit\Framework\TestCase
     {
         $idx1 = $this->createIndex();
         $idx2 = $this->createIndex();
-        $pri = $this->createIndex(true, true);
+        $pri  = $this->createIndex(true, true);
         $uniq = $this->createIndex(true);
 
         self::assertTrue($idx1->isFullfilledBy($idx2));
@@ -79,9 +80,9 @@ class IndexTest extends \PHPUnit\Framework\TestCase
 
     public function testFulfilledWithPartial()
     {
-        $without = new Index('without', array('col1', 'col2'), true, false, array(), array());
-        $partial = new Index('partial', array('col1', 'col2'), true, false, array(), array('where' => 'col1 IS NULL'));
-        $another = new Index('another', array('col1', 'col2'), true, false, array(), array('where' => 'col1 IS NULL'));
+        $without = new Index('without', ['col1', 'col2'], true, false, [], []);
+        $partial = new Index('partial', ['col1', 'col2'], true, false, [], ['where' => 'col1 IS NULL']);
+        $another = new Index('another', ['col1', 'col2'], true, false, [], ['where' => 'col1 IS NULL']);
 
         self::assertFalse($partial->isFullfilledBy($without));
         self::assertFalse($without->isFullfilledBy($partial));
@@ -94,9 +95,9 @@ class IndexTest extends \PHPUnit\Framework\TestCase
 
     public function testOverrulesWithPartial()
     {
-        $without = new Index('without', array('col1', 'col2'), true, false, array(), array());
-        $partial = new Index('partial', array('col1', 'col2'), true, false, array(), array('where' => 'col1 IS NULL'));
-        $another = new Index('another', array('col1', 'col2'), true, false, array(), array('where' => 'col1 IS NULL'));
+        $without = new Index('without', ['col1', 'col2'], true, false, [], []);
+        $partial = new Index('partial', ['col1', 'col2'], true, false, [], ['where' => 'col1 IS NULL']);
+        $another = new Index('another', ['col1', 'col2'], true, false, [], ['where' => 'col1 IS NULL']);
 
         self::assertFalse($partial->overrules($without));
         self::assertFalse($without->overrules($partial));
@@ -105,6 +106,36 @@ class IndexTest extends \PHPUnit\Framework\TestCase
 
         self::assertTrue($partial->overrules($another));
         self::assertTrue($another->overrules($partial));
+    }
+
+    /**
+     * @param string[]     $columns
+     * @param int[]|null[] $lengths1
+     * @param int[]|null[] $lengths2
+     *
+     * @dataProvider indexLengthProvider
+     */
+    public function testFulfilledWithLength(array $columns, array $lengths1, array $lengths2, bool $expected) : void
+    {
+        $index1 = new Index('index1', $columns, false, false, [], ['lengths' => $lengths1]);
+        $index2 = new Index('index2', $columns, false, false, [], ['lengths' => $lengths2]);
+
+        self::assertSame($expected, $index1->isFullfilledBy($index2));
+        self::assertSame($expected, $index2->isFullfilledBy($index1));
+    }
+
+    /**
+     * @return mixed[][]
+     */
+    public static function indexLengthProvider() : iterable
+    {
+        return [
+            'empty' => [['column'], [], [], true],
+            'same' => [['column'], [64], [64], true],
+            'different' => [['column'], [32], [64], false],
+            'sparse-different-positions' => [['column1', 'column2'], [0 => 32], [1 => 32], false],
+            'sparse-same-positions' => [['column1', 'column2'], [null, 32], [1 => 32], true],
+        ];
     }
 
     /**
@@ -119,7 +150,7 @@ class IndexTest extends \PHPUnit\Framework\TestCase
         $idx1->addFlag('clustered');
         self::assertTrue($idx1->hasFlag('clustered'));
         self::assertTrue($idx1->hasFlag('CLUSTERED'));
-        self::assertSame(array('clustered'), $idx1->getFlags());
+        self::assertSame(['clustered'], $idx1->getFlags());
 
         $idx1->removeFlag('clustered');
         self::assertFalse($idx1->hasFlag('clustered'));
@@ -131,14 +162,14 @@ class IndexTest extends \PHPUnit\Framework\TestCase
      */
     public function testIndexQuotes()
     {
-        $index = new Index("foo", array("`bar`", "`baz`"));
+        $index = new Index('foo', ['`bar`', '`baz`']);
 
-        self::assertTrue($index->spansColumns(array("bar", "baz")));
-        self::assertTrue($index->hasColumnAtPosition("bar", 0));
-        self::assertTrue($index->hasColumnAtPosition("baz", 1));
+        self::assertTrue($index->spansColumns(['bar', 'baz']));
+        self::assertTrue($index->hasColumnAtPosition('bar', 0));
+        self::assertTrue($index->hasColumnAtPosition('baz', 1));
 
-        self::assertFalse($index->hasColumnAtPosition("bar", 1));
-        self::assertFalse($index->hasColumnAtPosition("baz", 0));
+        self::assertFalse($index->hasColumnAtPosition('bar', 1));
+        self::assertFalse($index->hasColumnAtPosition('baz', 0));
     }
 
     public function testOptions()
@@ -147,11 +178,11 @@ class IndexTest extends \PHPUnit\Framework\TestCase
         self::assertFalse($idx1->hasOption('where'));
         self::assertEmpty($idx1->getOptions());
 
-        $idx2 = $this->createIndex(false, false, array('where' => 'name IS NULL'));
+        $idx2 = $this->createIndex(false, false, ['where' => 'name IS NULL']);
         self::assertTrue($idx2->hasOption('where'));
         self::assertTrue($idx2->hasOption('WHERE'));
         self::assertSame('name IS NULL', $idx2->getOption('where'));
         self::assertSame('name IS NULL', $idx2->getOption('WHERE'));
-        self::assertSame(array('where' => 'name IS NULL'), $idx2->getOptions());
+        self::assertSame(['where' => 'name IS NULL'], $idx2->getOptions());
     }
 }

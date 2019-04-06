@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Doctrine\Tests\DBAL\Functional\Types;
 
 use Doctrine\DBAL\Driver\IBMDB2\DB2Driver;
+use Doctrine\DBAL\Driver\PDOOracle\Driver as PDOOracleDriver;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\Tests\DbalFunctionalTestCase;
@@ -19,6 +20,10 @@ class BinaryTest extends DbalFunctionalTestCase
     {
         parent::setUp();
 
+        if ($this->connection->getDriver() instanceof PDOOracleDriver) {
+            $this->markTestSkipped('PDO_OCI doesn\'t support binding binary values');
+        }
+
         $table = new Table('binary_table');
         $table->addColumn('id', 'binary', [
             'length' => 16,
@@ -27,7 +32,7 @@ class BinaryTest extends DbalFunctionalTestCase
         $table->addColumn('val', 'binary', ['length' => 64]);
         $table->setPrimaryKey(['id']);
 
-        $sm = $this->_conn->getSchemaManager();
+        $sm = $this->connection->getSchemaManager();
         $sm->dropAndCreateTable($table);
     }
 
@@ -40,7 +45,7 @@ class BinaryTest extends DbalFunctionalTestCase
         $value2 = random_bytes(64);
 
         /** @see https://bugs.php.net/bug.php?id=76322 */
-        if ($this->_conn->getDriver() instanceof DB2Driver) {
+        if ($this->connection->getDriver() instanceof DB2Driver) {
             $value1 = str_replace("\x00", "\xFF", $value1);
             $value2 = str_replace("\x00", "\xFF", $value2);
         }
@@ -54,7 +59,7 @@ class BinaryTest extends DbalFunctionalTestCase
 
     private function insert(string $id, string $value) : void
     {
-        $result = $this->_conn->insert('binary_table', [
+        $result = $this->connection->insert('binary_table', [
             'id'  => $id,
             'val' => $value,
         ], [
@@ -67,7 +72,7 @@ class BinaryTest extends DbalFunctionalTestCase
 
     private function select(string $id)
     {
-        $value = $this->_conn->fetchColumn(
+        $value = $this->connection->fetchColumn(
             'SELECT val FROM binary_table WHERE id = ?',
             [$id],
             0,

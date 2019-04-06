@@ -68,8 +68,8 @@ install:
           Add-Content php.ini "`n extension=php_curl.dll"
           Add-Content php.ini "`n curl.cainfo=C:\tools\cacert\bundle.pem"
 
-          # Get and install the MSSQL DLL's
-          $DLLVersion = "5.2.0"
+          # Get and install the latest stable sqlsrv DLL's
+          $DLLVersion = (Invoke-WebRequest "https://pecl.php.net/rest/r/sqlsrv/stable.txt").Content
           cd c:\tools\php\ext
           $source = "https://windows.php.net/downloads/pecl/releases/sqlsrv/$($DLLVersion)/php_sqlsrv-$($DLLVersion)-$($env:php)-nts-vc15-x64.zip"
           $destination = "c:\tools\php\ext\php_sqlsrv-$($DLLVersion)-$($env:php)-nts-vc15-x64.zip"
@@ -131,17 +131,25 @@ before_test:
       }
 
 test_script:
-  - cd C:\projects\dbal
   - ps: >-
       if ($env:db_version) {
         $env:phpunit_config = "tests\appveyor\$($env:db).$($env:db_version).$($env:driver).appveyor.xml"
       } else {
         $env:phpunit_config = "tests\appveyor\$($env:db).$($env:driver).appveyor.xml"
       }
-  - ps: >-
+
       if ($env:coverage -eq "yes") {
         vendor\bin\phpunit -c $($env:phpunit_config) --coverage-clover clover.xml
-        appveyor-retry ocular code-coverage:upload --format=php-clover clover.xml
       } else {
         vendor\bin\phpunit -c $($env:phpunit_config)
+      }
+
+      if ($LastExitCode -ne 0) {
+        $host.SetShouldExit($LastExitCode)
+      }
+
+after_test:
+  - ps: >-
+      if ($env:coverage -eq "yes") {
+        appveyor-retry ocular code-coverage:upload --format=php-clover clover.xml
       }
