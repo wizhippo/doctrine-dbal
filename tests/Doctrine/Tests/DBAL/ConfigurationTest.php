@@ -20,7 +20,7 @@ class ConfigurationTest extends DbalTestCase
     /**
      * {@inheritdoc}
      */
-    protected function setUp()
+    protected function setUp() : void
     {
         $this->config = new Configuration();
     }
@@ -30,7 +30,7 @@ class ConfigurationTest extends DbalTestCase
      *
      * @group DBAL-81
      */
-    public function testReturnsDefaultConnectionAutoCommitMode()
+    public function testReturnsDefaultConnectionAutoCommitMode() : void
     {
         self::assertTrue($this->config->getAutoCommit());
     }
@@ -40,7 +40,7 @@ class ConfigurationTest extends DbalTestCase
      *
      * @group DBAL-81
      */
-    public function testSetsDefaultConnectionAutoCommitMode()
+    public function testSetsDefaultConnectionAutoCommitMode() : void
     {
         $this->config->setAutoCommit(false);
 

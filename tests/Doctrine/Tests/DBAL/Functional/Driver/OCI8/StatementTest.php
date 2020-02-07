@@ -8,7 +8,7 @@ use function extension_loaded;
 
 class StatementTest extends DbalFunctionalTestCase
 {
-    protected function setUp()
+    protected function setUp() : void
     {
         if (! extension_loaded('oci8')) {
             $this->markTestSkipped('oci8 is not installed.');
@@ -29,7 +29,7 @@ class StatementTest extends DbalFunctionalTestCase
      *
      * @dataProvider queryConversionProvider
      */
-    public function testQueryConversion($query, array $params, array $expected)
+    public function testQueryConversion(string $query, array $params, array $expected) : void
     {
         self::assertEquals(
             $expected,
@@ -37,12 +37,39 @@ class StatementTest extends DbalFunctionalTestCase
         );
     }
 
-    public static function queryConversionProvider()
+    /**
+     * Low-level approach to working with parameter binding
+     *
+     * @param mixed[] $params
+     * @param mixed[] $expected
+     *
+     * @dataProvider queryConversionProvider
+     */
+    public function testStatementBindParameters(string $query, array $params, array $expected) : void
+    {
+        $stmt = $this->connection->prepare($query);
+        $stmt->execute($params);
+
+        self::assertEquals(
+            $expected,
+            $stmt->fetch()
+        );
+    }
+
+    /**
+     * @return array<string, array<int, mixed>>
+     */
+    public static function queryConversionProvider() : iterable
     {
         return [
-            'simple' => [
+            'positional' => [
                 'SELECT ? COL1 FROM DUAL',
                 [1],
+                ['COL1' => 1],
+            ],
+            'named' => [
+                'SELECT :COL COL1 FROM DUAL',
+                [':COL' => 1],
                 ['COL1' => 1],
             ],
             'literal-with-placeholder' => [

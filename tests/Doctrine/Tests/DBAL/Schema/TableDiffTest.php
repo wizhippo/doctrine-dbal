@@ -2,31 +2,39 @@
 
 namespace Doctrine\Tests\DBAL\Schema;
 
+use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Schema\Identifier;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\DBAL\Schema\TableDiff;
-use Doctrine\Tests\DBAL\Mocks\MockPlatform;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 class TableDiffTest extends TestCase
 {
+    /** @var AbstractPlatform|MockObject */
+    private $platform;
+
+    public function setUp() : void
+    {
+        $this->platform = $this->createMock(AbstractPlatform::class);
+    }
+
     /**
      * @group DBAL-1013
      */
-    public function testReturnsName()
+    public function testReturnsName() : void
     {
         $tableDiff = new TableDiff('foo');
 
-        self::assertEquals(new Identifier('foo'), $tableDiff->getName(new MockPlatform()));
+        self::assertEquals(new Identifier('foo'), $tableDiff->getName($this->platform));
     }
 
     /**
      * @group DBAL-1016
      */
-    public function testPrefersNameFromTableObject()
+    public function testPrefersNameFromTableObject() : void
     {
-        $platformMock = new MockPlatform();
-        $tableMock    = $this->getMockBuilder(Table::class)
+        $tableMock = $this->getMockBuilder(Table::class)
             ->disableOriginalConstructor()
             ->getMock();
 
@@ -35,16 +43,16 @@ class TableDiffTest extends TestCase
 
         $tableMock->expects($this->once())
             ->method('getQuotedName')
-            ->with($platformMock)
+            ->with($this->platform)
             ->will($this->returnValue('foo'));
 
-        self::assertEquals(new Identifier('foo'), $tableDiff->getName($platformMock));
+        self::assertEquals(new Identifier('foo'), $tableDiff->getName($this->platform));
     }
 
     /**
      * @group DBAL-1013
      */
-    public function testReturnsNewName()
+    public function testReturnsNewName() : void
     {
         $tableDiff = new TableDiff('foo');
 

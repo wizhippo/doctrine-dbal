@@ -13,7 +13,7 @@ class OCI8ConnectionTest extends DbalFunctionalTestCase
     /** @var OCI8Connection */
     protected $driverConnection;
 
-    protected function setUp()
+    protected function setUp() : void
     {
         if (! extension_loaded('oci8')) {
             $this->markTestSkipped('oci8 is not installed.');
@@ -31,7 +31,7 @@ class OCI8ConnectionTest extends DbalFunctionalTestCase
     /**
      * @group DBAL-2595
      */
-    public function testLastInsertIdAcceptsFqn()
+    public function testLastInsertIdAcceptsFqn() : void
     {
         $platform      = $this->connection->getDatabasePlatform();
         $schemaManager = $this->connection->getSchemaManager();

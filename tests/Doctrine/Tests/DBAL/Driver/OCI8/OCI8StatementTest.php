@@ -11,7 +11,7 @@ use function extension_loaded;
 
 class OCI8StatementTest extends DbalTestCase
 {
-    protected function setUp()
+    protected function setUp() : void
     {
         if (! extension_loaded('oci8')) {
             $this->markTestSkipped('oci8 is not installed.');
@@ -32,12 +32,11 @@ class OCI8StatementTest extends DbalTestCase
      * @param mixed[] $params
      *
      * @dataProvider executeDataProvider
-     * @expectedException \Doctrine\DBAL\Driver\OCI8\OCI8Exception
      */
-    public function testExecute(array $params)
+    public function testExecute(array $params) : void
     {
         $statement = $this->getMockBuilder(OCI8Statement::class)
-            ->setMethods(['bindValue', 'errorInfo'])
+            ->onlyMethods(['bindValue', 'errorInfo'])
             ->disableOriginalConstructor()
             ->getMock();
 
@@ -60,10 +59,15 @@ class OCI8StatementTest extends DbalTestCase
                 $this->equalTo($params[2])
             );
 
+        // the return value is irrelevant to the test
+        // but it has to be compatible with the method signature
+        $statement->method('errorInfo')
+            ->willReturn(false);
+
         // can't pass to constructor since we don't have a real database handle,
         // but execute must check the connection for the executeMode
         $conn = $this->getMockBuilder(OCI8Connection::class)
-            ->setMethods(['getExecuteMode'])
+            ->onlyMethods(['getExecuteMode'])
             ->disableOriginalConstructor()
             ->getMock();
         $conn->expects($this->once())
@@ -73,10 +77,14 @@ class OCI8StatementTest extends DbalTestCase
         $reflProperty->setAccessible(true);
         $reflProperty->setValue($statement, $conn);
 
+        $this->expectException(OCI8Exception::class);
         $statement->execute($params);
     }
 
-    public static function executeDataProvider()
+    /**
+     * @return array<int, array<int, mixed>>
+     */
+    public static function executeDataProvider() : iterable
     {
         return [
             // $hasZeroIndex = isset($params[0]); == true
@@ -93,14 +101,17 @@ class OCI8StatementTest extends DbalTestCase
     /**
      * @dataProvider nonTerminatedLiteralProvider
      */
-    public function testConvertNonTerminatedLiteral($sql, $message)
+    public function testConvertNonTerminatedLiteral(string $sql, string $message) : void
     {
         $this->expectException(OCI8Exception::class);
         $this->expectExceptionMessageRegExp($message);
         OCI8Statement::convertPositionalToNamedPlaceholders($sql);
     }
 
-    public static function nonTerminatedLiteralProvider()
+    /**
+     * @return array<string, array<int, mixed>>
+     */
+    public static function nonTerminatedLiteralProvider() : iterable
     {
         return [
             'no-matching-quote' => [

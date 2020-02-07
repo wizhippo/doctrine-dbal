@@ -10,7 +10,7 @@ use function extension_loaded;
 
 class PDOStatementTest extends DbalFunctionalTestCase
 {
-    protected function setUp()
+    protected function setUp() : void
     {
         if (! extension_loaded('pdo')) {
             $this->markTestSkipped('PDO is not installed');
@@ -30,9 +30,9 @@ class PDOStatementTest extends DbalFunctionalTestCase
 
     /**
      * @group legacy
-     * @expectedDeprecation Using a PDO fetch mode or their combination (%d given) is deprecated and will cause an error in Doctrine 3.0
+     * @expectedDeprecation Using a PDO fetch mode or their combination (%d given) is deprecated and will cause an error in Doctrine DBAL 3.0
      */
-    public function testPDOSpecificModeIsAccepted()
+    public function testPDOSpecificModeIsAccepted() : void
     {
         $this->connection->insert('stmt_test', [
             'id' => 1,

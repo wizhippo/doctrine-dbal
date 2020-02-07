@@ -17,7 +17,7 @@ abstract class AbstractTestCase extends TestCase
     /** @var SQLAzureShardManager */
     protected $sm;
 
-    protected function setUp()
+    protected function setUp() : void
     {
         if (! isset($GLOBALS['db_type']) || strpos($GLOBALS['db_type'], 'sqlsrv') === false) {
             $this->markTestSkipped('No driver or sqlserver driver specified.');
@@ -52,7 +52,7 @@ abstract class AbstractTestCase extends TestCase
         $this->sm = new SQLAzureShardManager($this->conn);
     }
 
-    public function createShopSchema()
+    protected function createShopSchema() : Schema
     {
         $schema = new Schema();
 

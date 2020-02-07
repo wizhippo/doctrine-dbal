@@ -21,7 +21,7 @@ class RunSqlCommandTest extends TestCase
     /** @var Connection */
     private $connectionMock;
 
-    protected function setUp()
+    protected function setUp() : void
     {
         $application = new Application();
         $application->add(new RunSqlCommand());
@@ -39,7 +39,7 @@ class RunSqlCommandTest extends TestCase
         $this->command->setHelperSet($helperSet);
     }
 
-    public function testMissingSqlArgument()
+    public function testMissingSqlArgument() : void
     {
         try {
             $this->commandTester->execute([
@@ -48,11 +48,11 @@ class RunSqlCommandTest extends TestCase
             ]);
             $this->fail('Expected a runtime exception when omitting sql argument');
         } catch (RuntimeException $e) {
-            self::assertContains("Argument 'SQL", $e->getMessage());
+            self::assertStringContainsString("Argument 'SQL", $e->getMessage());
         }
     }
 
-    public function testIncorrectDepthOption()
+    public function testIncorrectDepthOption() : void
     {
         try {
             $this->commandTester->execute([
@@ -62,24 +62,25 @@ class RunSqlCommandTest extends TestCase
             ]);
             $this->fail('Expected a logic exception when executing with a stringy depth');
         } catch (LogicException $e) {
-            self::assertContains("Option 'depth'", $e->getMessage());
+            self::assertStringContainsString("Option 'depth'", $e->getMessage());
         }
     }
 
-    public function testSelectStatementsPrintsResult()
+    public function testSelectStatementsPrintsResult() : void
     {
         $this->expectConnectionFetchAll();
 
-        $this->commandTester->execute([
+        $exitCode = $this->commandTester->execute([
             'command' => $this->command->getName(),
             'sql' => 'SELECT 1',
         ]);
+        $this->assertSame(0, $exitCode);
 
         self::assertRegExp('@int.*1.*@', $this->commandTester->getDisplay());
         self::assertRegExp('@array.*1.*@', $this->commandTester->getDisplay());
     }
 
-    public function testUpdateStatementsPrintsAffectedLines()
+    public function testUpdateStatementsPrintsAffectedLines() : void
     {
         $this->expectConnectionExecuteUpdate();
 
@@ -92,7 +93,7 @@ class RunSqlCommandTest extends TestCase
         self::assertNotRegExp('@array.*1.*@', $this->commandTester->getDisplay());
     }
 
-    private function expectConnectionExecuteUpdate()
+    private function expectConnectionExecuteUpdate() : void
     {
         $this->connectionMock
             ->expects($this->exactly(1))
@@ -102,7 +103,7 @@ class RunSqlCommandTest extends TestCase
             ->method('fetchAll');
     }
 
-    private function expectConnectionFetchAll()
+    private function expectConnectionFetchAll() : void
     {
         $this->connectionMock
             ->expects($this->exactly(0))
@@ -112,7 +113,7 @@ class RunSqlCommandTest extends TestCase
             ->method('fetchAll');
     }
 
-    public function testStatementsWithFetchResultPrintsResult()
+    public function testStatementsWithFetchResultPrintsResult() : void
     {
         $this->expectConnectionFetchAll();
 

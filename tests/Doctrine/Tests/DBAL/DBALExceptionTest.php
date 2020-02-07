@@ -15,48 +15,36 @@ use function sprintf;
 
 class DBALExceptionTest extends DbalTestCase
 {
-    public function testDriverExceptionDuringQueryAcceptsBinaryData()
+    public function testDriverExceptionDuringQueryAcceptsBinaryData() : void
     {
         /** @var Driver $driver */
         $driver = $this->createMock(Driver::class);
         $e      = DBALException::driverExceptionDuringQuery($driver, new Exception(), '', ['ABC', chr(128)]);
-        self::assertContains('with params ["ABC", "\x80"]', $e->getMessage());
+        self::assertStringContainsString('with params ["ABC", "\x80"]', $e->getMessage());
     }
 
-    public function testDriverExceptionDuringQueryAcceptsResource()
+    public function testDriverExceptionDuringQueryAcceptsResource() : void
     {
         /** @var Driver $driver */
         $driver = $this->createMock(Driver::class);
         $e      = DBALException::driverExceptionDuringQuery($driver, new Exception(), 'INSERT INTO file (`content`) VALUES (?)', [1 => fopen(__FILE__, 'r')]);
-        self::assertContains('Resource', $e->getMessage());
+        self::assertStringContainsString('Resource', $e->getMessage());
     }
 
-    public function testAvoidOverWrappingOnDriverException()
+    public function testAvoidOverWrappingOnDriverException() : void
     {
         /** @var Driver $driver */
         $driver = $this->createMock(Driver::class);
-        $inner  = new class extends Exception implements InnerDriverException
-        {
-            /**
-             * {@inheritDoc}
-             */
-            public function getErrorCode()
-            {
-            }
 
-            /**
-             * {@inheritDoc}
-             */
-            public function getSQLState()
-            {
-            }
-        };
-        $ex     = new DriverException('', $inner);
-        $e      = DBALException::driverExceptionDuringQuery($driver, $ex, '');
+        /** @var InnerDriverException $inner */
+        $inner = $this->createMock(InnerDriverException::class);
+
+        $ex = new DriverException('', $inner);
+        $e  = DBALException::driverExceptionDuringQuery($driver, $ex, '');
         self::assertSame($ex, $e);
     }
 
-    public function testDriverRequiredWithUrl()
+    public function testDriverRequiredWithUrl() : void
     {
         $url       = 'mysql://localhost';
         $exception = DBALException::driverRequired($url);

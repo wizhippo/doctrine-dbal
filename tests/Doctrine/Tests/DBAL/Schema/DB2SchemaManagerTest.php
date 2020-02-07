@@ -8,8 +8,8 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Driver;
 use Doctrine\DBAL\Platforms\DB2Platform;
 use Doctrine\DBAL\Schema\DB2SchemaManager;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use PHPUnit_Framework_MockObject_MockObject;
 use function in_array;
 
 /**
@@ -17,20 +17,20 @@ use function in_array;
  */
 final class DB2SchemaManagerTest extends TestCase
 {
-    /** @var Connection|PHPUnit_Framework_MockObject_MockObject */
+    /** @var Connection|MockObject */
     private $conn;
 
     /** @var DB2SchemaManager */
     private $manager;
 
-    protected function setUp()
+    protected function setUp() : void
     {
         $eventManager  = new EventManager();
         $driverMock    = $this->createMock(Driver::class);
         $platform      = $this->createMock(DB2Platform::class);
         $this->conn    = $this
             ->getMockBuilder(Connection::class)
-            ->setMethods(['fetchAll', 'quote'])
+            ->onlyMethods(['fetchAll', 'quote'])
             ->setConstructorArgs([['platform' => $platform], $driverMock, new Configuration(), $eventManager])
             ->getMock();
         $this->manager = new DB2SchemaManager($this->conn);
@@ -39,11 +39,9 @@ final class DB2SchemaManagerTest extends TestCase
     /**
      * @see https://github.com/doctrine/dbal/issues/2701
      *
-     * @return void
-     *
      * @group DBAL-2701
      */
-    public function testListTableNamesFiltersAssetNamesCorrectly()
+    public function testListTableNamesFiltersAssetNamesCorrectly() : void
     {
         $this->conn->getConfiguration()->setFilterSchemaAssetsExpression('/^(?!T_)/');
         $this->conn->expects($this->once())->method('fetchAll')->will($this->returnValue([
@@ -63,11 +61,9 @@ final class DB2SchemaManagerTest extends TestCase
     }
 
     /**
-     * @return void
-     *
      * @group DBAL-2701
      */
-    public function testAssetFilteringSetsACallable()
+    public function testAssetFilteringSetsACallable() : void
     {
         $filterExpression = '/^(?!T_)/';
         $this->conn->getConfiguration()->setFilterSchemaAssetsExpression($filterExpression);
@@ -87,16 +83,13 @@ final class DB2SchemaManagerTest extends TestCase
         );
 
         $callable = $this->conn->getConfiguration()->getSchemaAssetsFilter();
-        $this->assertInternalType('callable', $callable);
+        self::assertIsCallable($callable);
 
         // BC check: Test that regexp expression is still preserved & accessible.
         $this->assertEquals($filterExpression, $this->conn->getConfiguration()->getFilterSchemaAssetsExpression());
     }
 
-    /**
-     * @return void
-     */
-    public function testListTableNamesFiltersAssetNamesCorrectlyWithCallable()
+    public function testListTableNamesFiltersAssetNamesCorrectlyWithCallable() : void
     {
         $accepted = ['T_FOO', 'T_BAR'];
         $this->conn->getConfiguration()->setSchemaAssetsFilter(static function ($assetName) use ($accepted) {
@@ -121,10 +114,7 @@ final class DB2SchemaManagerTest extends TestCase
         $this->assertNull($this->conn->getConfiguration()->getFilterSchemaAssetsExpression());
     }
 
-    /**
-     * @return void
-     */
-    public function testSettingNullExpressionWillResetCallable()
+    public function testSettingNullExpressionWillResetCallable() : void
     {
         $accepted = ['T_FOO', 'T_BAR'];
         $this->conn->getConfiguration()->setSchemaAssetsFilter(static function ($assetName) use ($accepted) {
@@ -161,10 +151,7 @@ final class DB2SchemaManagerTest extends TestCase
         $this->assertNull($this->conn->getConfiguration()->getSchemaAssetsFilter());
     }
 
-    /**
-     * @return void
-     */
-    public function testSettingNullAsCallableClearsExpression()
+    public function testSettingNullAsCallableClearsExpression() : void
     {
         $filterExpression = '/^(?!T_)/';
         $this->conn->getConfiguration()->setFilterSchemaAssetsExpression($filterExpression);

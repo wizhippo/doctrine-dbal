@@ -21,19 +21,19 @@ class MySqlSchemaManagerTest extends TestCase
     /** @var Connection */
     private $conn;
 
-    protected function setUp()
+    protected function setUp() : void
     {
         $eventManager  = new EventManager();
         $driverMock    = $this->createMock(Driver::class);
         $platform      = $this->createMock(MySqlPlatform::class);
         $this->conn    = $this->getMockBuilder(Connection::class)
-            ->setMethods(['fetchAll'])
+            ->onlyMethods(['fetchAll'])
             ->setConstructorArgs([['platform' => $platform], $driverMock, new Configuration(), $eventManager])
             ->getMock();
         $this->manager = new MySqlSchemaManager($this->conn);
     }
 
-    public function testCompositeForeignKeys()
+    public function testCompositeForeignKeys() : void
     {
         $this->conn->expects($this->once())->method('fetchAll')->will($this->returnValue($this->getFKDefinition()));
         $fkeys = $this->manager->listTableForeignKeys('dummy');
@@ -44,7 +44,10 @@ class MySqlSchemaManagerTest extends TestCase
         self::assertEquals(['column_1', 'column_2', 'column_3'], array_map('strtolower', $fkeys[0]->getForeignColumns()));
     }
 
-    public function getFKDefinition()
+    /**
+     * @return string[][]
+     */
+    public function getFKDefinition() : array
     {
         return [
             [

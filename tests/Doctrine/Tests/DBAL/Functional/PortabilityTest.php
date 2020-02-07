@@ -4,7 +4,6 @@ namespace Doctrine\Tests\DBAL\Functional;
 
 use Doctrine\DBAL\ColumnCase;
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Driver\PDOSqlsrv\Driver;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\FetchMode;
 use Doctrine\DBAL\Portability\Connection as ConnectionPortability;
@@ -21,7 +20,7 @@ class PortabilityTest extends DbalFunctionalTestCase
     /** @var Connection */
     private $portableConnection;
 
-    protected function tearDown()
+    protected function tearDown() : void
     {
         if ($this->portableConnection) {
             $this->portableConnection->close();
@@ -30,16 +29,10 @@ class PortabilityTest extends DbalFunctionalTestCase
         parent::tearDown();
     }
 
-    /**
-     * @param int $portabilityMode
-     * @param int $case
-     *
-     * @return  Connection
-     */
     private function getPortableConnection(
-        $portabilityMode = ConnectionPortability::PORTABILITY_ALL,
-        $case = ColumnCase::LOWER
-    ) {
+        int $portabilityMode = ConnectionPortability::PORTABILITY_ALL,
+        int $case = ColumnCase::LOWER
+    ) : Connection {
         if (! $this->portableConnection) {
             $params = $this->connection->getParams();
 
@@ -68,7 +61,7 @@ class PortabilityTest extends DbalFunctionalTestCase
         return $this->portableConnection;
     }
 
-    public function testFullFetchMode()
+    public function testFullFetchMode() : void
     {
         $rows = $this->getPortableConnection()->fetchAll('SELECT * FROM portability_table');
         $this->assertFetchResultRows($rows);
@@ -94,7 +87,7 @@ class PortabilityTest extends DbalFunctionalTestCase
         }
     }
 
-    public function testConnFetchMode()
+    public function testConnFetchMode() : void
     {
         $conn = $this->getPortableConnection();
         $conn->setFetchMode(FetchMode::ASSOCIATIVE);
@@ -119,7 +112,10 @@ class PortabilityTest extends DbalFunctionalTestCase
         }
     }
 
-    public function assertFetchResultRows($rows)
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     */
+    private function assertFetchResultRows(array $rows) : void
     {
         self::assertCount(2, $rows);
         foreach ($rows as $row) {
@@ -127,7 +123,10 @@ class PortabilityTest extends DbalFunctionalTestCase
         }
     }
 
-    public function assertFetchResultRow($row)
+    /**
+     * @param array<string, mixed> $row
+     */
+    public function assertFetchResultRow(array $row) : void
     {
         self::assertContains($row['test_int'], [1, 2], 'Primary key test_int should either be 1 or 2.');
         self::assertArrayHasKey('test_string', $row, 'Case should be lowered.');
@@ -137,35 +136,11 @@ class PortabilityTest extends DbalFunctionalTestCase
     }
 
     /**
-     * @requires extension pdo
-     */
-    public function testPortabilityPdoSqlServer()
-    {
-        $portability = ConnectionPortability::PORTABILITY_SQLSRV;
-        $params      = ['portability' => $portability];
-
-        $driverMock = $this->getMockBuilder(Driver::class)
-            ->setMethods(['connect'])
-            ->getMock();
-
-        $driverMock->expects($this->once())
-                   ->method('connect')
-                   ->will($this->returnValue(null));
-
-        $connection = new ConnectionPortability($params, $driverMock);
-
-        $connection->connect($params);
-
-        self::assertEquals($portability, $connection->getPortability());
-    }
-
-    /**
-     * @param string  $field
      * @param mixed[] $expected
      *
      * @dataProvider fetchAllColumnProvider
      */
-    public function testFetchAllColumn($field, array $expected)
+    public function testFetchAllColumn(string $field, array $expected) : void
     {
         $conn = $this->getPortableConnection();
         $stmt = $conn->query('SELECT ' . $field . ' FROM portability_table');
@@ -174,7 +149,10 @@ class PortabilityTest extends DbalFunctionalTestCase
         self::assertEquals($expected, $column);
     }
 
-    public static function fetchAllColumnProvider()
+    /**
+     * @return iterable<string, array<int, mixed>>
+     */
+    public static function fetchAllColumnProvider() : iterable
     {
         return [
             'int' => [
@@ -188,7 +166,7 @@ class PortabilityTest extends DbalFunctionalTestCase
         ];
     }
 
-    public function testFetchAllNullColumn()
+    public function testFetchAllNullColumn() : void
     {
         $conn = $this->getPortableConnection();
         $stmt = $conn->query('SELECT Test_Null FROM portability_table');

@@ -11,7 +11,7 @@ use function microtime;
  * and stopTiming at the end of all tests. Tests that do not start or stop
  * timing will fail.
  */
-class DbalPerformanceTestCase extends DbalFunctionalTestCase
+abstract class DbalPerformanceTestCase extends DbalFunctionalTestCase
 {
     /**
      * time the test started
@@ -30,7 +30,7 @@ class DbalPerformanceTestCase extends DbalFunctionalTestCase
     /**
      * {@inheritdoc}
      */
-    protected function assertPostConditions()
+    protected function assertPostConditions() : void
     {
         // If a perf test doesn't start or stop, it fails.
         self::assertNotNull($this->startTime, 'Test timing was started');
@@ -40,7 +40,7 @@ class DbalPerformanceTestCase extends DbalFunctionalTestCase
     /**
      * begin timing
      */
-    protected function startTiming()
+    protected function startTiming() : void
     {
         $this->startTime = microtime(true);
     }
@@ -48,7 +48,7 @@ class DbalPerformanceTestCase extends DbalFunctionalTestCase
     /**
      * end timing
      */
-    protected function stopTiming()
+    protected function stopTiming() : void
     {
         $this->runTime = microtime(true) - $this->startTime;
     }
@@ -56,7 +56,7 @@ class DbalPerformanceTestCase extends DbalFunctionalTestCase
     /**
      * @return float elapsed test execution time
      */
-    public function getTime()
+    public function getTime() : float
     {
         return $this->runTime;
     }

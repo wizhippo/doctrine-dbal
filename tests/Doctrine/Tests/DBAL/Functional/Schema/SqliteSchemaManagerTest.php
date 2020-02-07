@@ -2,11 +2,13 @@
 
 namespace Doctrine\Tests\DBAL\Functional\Schema;
 
+use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Driver\Connection;
 use Doctrine\DBAL\Schema;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\DBAL\Types\BlobType;
 use Doctrine\DBAL\Types\Type;
+use Doctrine\DBAL\Types\Types;
 use SQLite3;
 use function array_map;
 use function dirname;
@@ -17,15 +19,15 @@ class SqliteSchemaManagerTest extends SchemaManagerFunctionalTestCase
 {
     /**
      * SQLITE does not support databases.
-     *
-     * @expectedException \Doctrine\DBAL\DBALException
      */
-    public function testListDatabases()
+    public function testListDatabases() : void
     {
+        $this->expectException(DBALException::class);
+
         $this->schemaManager->listDatabases();
     }
 
-    public function testCreateAndDropDatabase()
+    public function testCreateAndDropDatabase() : void
     {
         $path = dirname(__FILE__) . '/test_create_and_drop_sqlite_database.sqlite';
 
@@ -38,7 +40,7 @@ class SqliteSchemaManagerTest extends SchemaManagerFunctionalTestCase
     /**
      * @group DBAL-1220
      */
-    public function testDropsDatabaseWithActiveConnections()
+    public function testDropsDatabaseWithActiveConnections() : void
     {
         $this->schemaManager->dropAndCreateDatabase('test_drop_database');
 
@@ -61,7 +63,7 @@ class SqliteSchemaManagerTest extends SchemaManagerFunctionalTestCase
         unset($connection);
     }
 
-    public function testRenameTable()
+    public function testRenameTable() : void
     {
         $this->createTestTable('oldname');
         $this->schemaManager->renameTable('oldname', 'newname');
@@ -71,7 +73,7 @@ class SqliteSchemaManagerTest extends SchemaManagerFunctionalTestCase
         self::assertNotContains('oldname', $tables);
     }
 
-    public function createListTableColumns()
+    public function createListTableColumns() : Table
     {
         $table = parent::createListTableColumns();
         $table->getColumn('id')->setAutoincrement(true);
@@ -79,7 +81,7 @@ class SqliteSchemaManagerTest extends SchemaManagerFunctionalTestCase
         return $table;
     }
 
-    public function testListForeignKeysFromExistingDatabase()
+    public function testListForeignKeysFromExistingDatabase() : void
     {
         $this->connection->exec(<<<EOS
 CREATE TABLE user (
@@ -119,7 +121,7 @@ EOS
         self::assertEquals($expected, $this->schemaManager->listTableForeignKeys('user'));
     }
 
-    public function testColumnCollation()
+    public function testColumnCollation() : void
     {
         $table = new Schema\Table('test_collation');
         $table->addColumn('id', 'integer');
@@ -136,7 +138,7 @@ EOS
         self::assertEquals('NOCASE', $columns['bar']->getPlatformOption('collation'));
     }
 
-    public function testListTableWithBinary()
+    public function testListTableWithBinary() : void
     {
         $tableName = 'test_binary_table';
 
@@ -157,7 +159,7 @@ EOS
         self::assertFalse($table->getColumn('column_binary')->getFixed());
     }
 
-    public function testNonDefaultPKOrder()
+    public function testNonDefaultPKOrder() : void
     {
         if (! extension_loaded('sqlite3')) {
             $this->markTestSkipped('This test requires the SQLite3 extension.');
@@ -187,7 +189,7 @@ EOS
     /**
      * @group DBAL-1779
      */
-    public function testListTableColumnsWithWhitespacesInTypeDeclarations()
+    public function testListTableColumnsWithWhitespacesInTypeDeclarations() : void
     {
         $sql = <<<SQL
 CREATE TABLE dbal_1779 (
@@ -205,8 +207,8 @@ SQL;
         self::assertArrayHasKey('foo', $columns);
         self::assertArrayHasKey('bar', $columns);
 
-        self::assertSame(Type::getType(Type::STRING), $columns['foo']->getType());
-        self::assertSame(Type::getType(Type::TEXT), $columns['bar']->getType());
+        self::assertSame(Type::getType(Types::STRING), $columns['foo']->getType());
+        self::assertSame(Type::getType(Types::TEXT), $columns['bar']->getType());
 
         self::assertSame(64, $columns['foo']->getLength());
         self::assertSame(100, $columns['bar']->getLength());
@@ -216,7 +218,7 @@ SQL;
      * @dataProvider getDiffListIntegerAutoincrementTableColumnsData
      * @group DBAL-924
      */
-    public function testDiffListIntegerAutoincrementTableColumns($integerType, $unsigned, $expectedComparatorDiff)
+    public function testDiffListIntegerAutoincrementTableColumns(string $integerType, bool $unsigned, bool $expectedComparatorDiff) : void
     {
         $tableName = 'test_int_autoincrement_table';
 
@@ -240,7 +242,7 @@ SQL;
     /**
      * @return mixed[][]
      */
-    public function getDiffListIntegerAutoincrementTableColumnsData()
+    public static function getDiffListIntegerAutoincrementTableColumnsData() : iterable
     {
         return [
             ['smallint', false, true],
@@ -255,7 +257,7 @@ SQL;
     /**
      * @group DBAL-2921
      */
-    public function testPrimaryKeyNoAutoIncrement()
+    public function testPrimaryKeyNoAutoIncrement() : void
     {
         $table = new Schema\Table('test_pk_auto_increment');
         $table->addColumn('id', 'integer');

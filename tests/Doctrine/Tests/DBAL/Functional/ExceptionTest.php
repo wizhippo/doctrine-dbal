@@ -3,24 +3,34 @@
 namespace Doctrine\Tests\DBAL\Functional;
 
 use Doctrine\DBAL\Driver\ExceptionConverterDriver;
+use Doctrine\DBAL\Driver\ServerInfoAwareConnection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Exception;
+use Doctrine\DBAL\Platforms\DrizzlePlatform;
+use Doctrine\DBAL\Platforms\MySqlPlatform;
+use Doctrine\DBAL\Platforms\PostgreSqlPlatform;
+use Doctrine\DBAL\Platforms\SqlitePlatform;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\Tests\DbalFunctionalTestCase;
 use Throwable;
+use const PHP_OS;
 use function array_merge;
+use function assert;
 use function chmod;
-use function defined;
+use function exec;
 use function file_exists;
+use function posix_geteuid;
+use function posix_getpwuid;
 use function sprintf;
 use function sys_get_temp_dir;
 use function touch;
 use function unlink;
+use function version_compare;
 
 class ExceptionTest extends DbalFunctionalTestCase
 {
-    protected function setUp()
+    protected function setUp() : void
     {
         parent::setUp();
 
@@ -31,7 +41,7 @@ class ExceptionTest extends DbalFunctionalTestCase
         $this->markTestSkipped('Driver does not support special exception handling.');
     }
 
-    public function testPrimaryConstraintViolationException()
+    public function testPrimaryConstraintViolationException() : void
     {
         $table = new Table('duplicatekey_table');
         $table->addColumn('id', 'integer', []);
@@ -45,7 +55,7 @@ class ExceptionTest extends DbalFunctionalTestCase
         $this->connection->insert('duplicatekey_table', ['id' => 1]);
     }
 
-    public function testTableNotFoundException()
+    public function testTableNotFoundException() : void
     {
         $sql = 'SELECT * FROM unknown_table';
 
@@ -53,7 +63,7 @@ class ExceptionTest extends DbalFunctionalTestCase
         $this->connection->executeQuery($sql);
     }
 
-    public function testTableExistsException()
+    public function testTableExistsException() : void
     {
         $schemaManager = $this->connection->getSchemaManager();
         $table         = new Table('alreadyexist_table');
@@ -65,7 +75,7 @@ class ExceptionTest extends DbalFunctionalTestCase
         $schemaManager->createTable($table);
     }
 
-    public function testForeignKeyConstraintViolationExceptionOnInsert()
+    public function testForeignKeyConstraintViolationExceptionOnInsert() : void
     {
         if (! $this->connection->getDatabasePlatform()->supportsForeignKeyConstraints()) {
             $this->markTestSkipped('Only fails on platforms with foreign key constraints.');
@@ -99,7 +109,7 @@ class ExceptionTest extends DbalFunctionalTestCase
         $this->tearDownForeignKeyConstraintViolationExceptionTest();
     }
 
-    public function testForeignKeyConstraintViolationExceptionOnUpdate()
+    public function testForeignKeyConstraintViolationExceptionOnUpdate() : void
     {
         if (! $this->connection->getDatabasePlatform()->supportsForeignKeyConstraints()) {
             $this->markTestSkipped('Only fails on platforms with foreign key constraints.');
@@ -133,7 +143,7 @@ class ExceptionTest extends DbalFunctionalTestCase
         $this->tearDownForeignKeyConstraintViolationExceptionTest();
     }
 
-    public function testForeignKeyConstraintViolationExceptionOnDelete()
+    public function testForeignKeyConstraintViolationExceptionOnDelete() : void
     {
         if (! $this->connection->getDatabasePlatform()->supportsForeignKeyConstraints()) {
             $this->markTestSkipped('Only fails on platforms with foreign key constraints.');
@@ -167,7 +177,7 @@ class ExceptionTest extends DbalFunctionalTestCase
         $this->tearDownForeignKeyConstraintViolationExceptionTest();
     }
 
-    public function testForeignKeyConstraintViolationExceptionOnTruncate()
+    public function testForeignKeyConstraintViolationExceptionOnTruncate() : void
     {
         $platform = $this->connection->getDatabasePlatform();
 
@@ -203,7 +213,7 @@ class ExceptionTest extends DbalFunctionalTestCase
         $this->tearDownForeignKeyConstraintViolationExceptionTest();
     }
 
-    public function testNotNullConstraintViolationException()
+    public function testNotNullConstraintViolationException() : void
     {
         $schema = new Schema();
 
@@ -220,7 +230,7 @@ class ExceptionTest extends DbalFunctionalTestCase
         $this->connection->insert('notnull_table', ['id' => 1, 'value' => null]);
     }
 
-    public function testInvalidFieldNameException()
+    public function testInvalidFieldNameException() : void
     {
         $schema = new Schema();
 
@@ -235,7 +245,7 @@ class ExceptionTest extends DbalFunctionalTestCase
         $this->connection->insert('bad_fieldname_table', ['name' => 5]);
     }
 
-    public function testNonUniqueFieldNameException()
+    public function testNonUniqueFieldNameException() : void
     {
         $schema = new Schema();
 
@@ -254,7 +264,7 @@ class ExceptionTest extends DbalFunctionalTestCase
         $this->connection->executeQuery($sql);
     }
 
-    public function testUniqueConstraintViolationException()
+    public function testUniqueConstraintViolationException() : void
     {
         $schema = new Schema();
 
@@ -271,7 +281,7 @@ class ExceptionTest extends DbalFunctionalTestCase
         $this->connection->insert('unique_field_table', ['id' => 5]);
     }
 
-    public function testSyntaxErrorException()
+    public function testSyntaxErrorException() : void
     {
         $table = new Table('syntax_error_table');
         $table->addColumn('id', 'integer', []);
@@ -284,24 +294,27 @@ class ExceptionTest extends DbalFunctionalTestCase
         $this->connection->executeQuery($sql);
     }
 
-    /**
-     * @dataProvider getSqLiteOpenConnection
-     */
-    public function testConnectionExceptionSqLite($mode, $exceptionClass)
+    public function testConnectionExceptionSqLite() : void
     {
-        if ($this->connection->getDatabasePlatform()->getName() !== 'sqlite') {
+        if (! ($this->connection->getDatabasePlatform() instanceof SqlitePlatform)) {
             $this->markTestSkipped('Only fails this way on sqlite');
         }
+
+        // mode 0 is considered read-only on Windows
+        $mode = PHP_OS === 'Linux' ? 0444 : 0000;
 
         $filename = sprintf('%s/%s', sys_get_temp_dir(), 'doctrine_failed_connection_' . $mode . '.db');
 
         if (file_exists($filename)) {
-            chmod($filename, 0200); // make the file writable again, so it can be removed on Windows
-            unlink($filename);
+            $this->cleanupReadOnlyFile($filename);
         }
 
         touch($filename);
         chmod($filename, $mode);
+
+        if ($this->isLinuxRoot()) {
+            exec(sprintf('chattr +i %s', $filename));
+        }
 
         $params = [
             'driver' => 'pdo_sqlite',
@@ -313,36 +326,52 @@ class ExceptionTest extends DbalFunctionalTestCase
         $table  = $schema->createTable('no_connection');
         $table->addColumn('id', 'integer');
 
-        $this->expectException($exceptionClass);
-        foreach ($schema->toSql($conn->getDatabasePlatform()) as $sql) {
-            $conn->exec($sql);
-        }
-    }
+        $this->expectException(Exception\ReadOnlyException::class);
+        $this->expectExceptionMessage(
+            <<<EOT
+An exception occurred while executing 'CREATE TABLE no_connection (id INTEGER NOT NULL)':
 
-    public function getSqLiteOpenConnection()
-    {
-        return [
-            // mode 0 is considered read-only on Windows
-            [0000, defined('PHP_WINDOWS_VERSION_BUILD') ? Exception\ReadOnlyException::class : Exception\ConnectionException::class],
-            [0444, Exception\ReadOnlyException::class],
-        ];
+SQLSTATE[HY000]: General error: 8 attempt to write a readonly database
+EOT
+        );
+
+        try {
+            foreach ($schema->toSql($conn->getDatabasePlatform()) as $sql) {
+                $conn->exec($sql);
+            }
+        } finally {
+            $this->cleanupReadOnlyFile($filename);
+        }
     }
 
     /**
+     * @param array<string, mixed> $params
+     *
      * @dataProvider getConnectionParams
      */
-    public function testConnectionException($params)
+    public function testConnectionException(array $params) : void
     {
-        if ($this->connection->getDatabasePlatform()->getName() === 'sqlite') {
+        $platform = $this->connection->getDatabasePlatform();
+
+        if ($platform instanceof SqlitePlatform) {
             $this->markTestSkipped('Only skipped if platform is not sqlite');
         }
 
-        if ($this->connection->getDatabasePlatform()->getName() === 'drizzle') {
+        if ($platform instanceof DrizzlePlatform) {
             $this->markTestSkipped('Drizzle does not always support authentication');
         }
 
-        if ($this->connection->getDatabasePlatform()->getName() === 'postgresql' && isset($params['password'])) {
+        if ($platform instanceof PostgreSqlPlatform && isset($params['password'])) {
             $this->markTestSkipped('Does not work on Travis');
+        }
+
+        if ($platform instanceof MySqlPlatform && isset($params['user'])) {
+            $wrappedConnection = $this->connection->getWrappedConnection();
+            assert($wrappedConnection instanceof ServerInfoAwareConnection);
+
+            if (version_compare($wrappedConnection->getServerVersion(), '8', '>=')) {
+                $this->markTestIncomplete('PHP currently does not completely support MySQL 8');
+            }
         }
 
         $defaultParams = $this->connection->getParams();
@@ -361,7 +390,10 @@ class ExceptionTest extends DbalFunctionalTestCase
         }
     }
 
-    public function getConnectionParams()
+    /**
+     * @return array<int, array<int, mixed>>
+     */
+    public static function getConnectionParams() : iterable
     {
         return [
             [['user' => 'not_existing']],
@@ -370,7 +402,7 @@ class ExceptionTest extends DbalFunctionalTestCase
         ];
     }
 
-    private function setUpForeignKeyConstraintViolationExceptionTest()
+    private function setUpForeignKeyConstraintViolationExceptionTest() : void
     {
         $schemaManager = $this->connection->getSchemaManager();
 
@@ -388,11 +420,26 @@ class ExceptionTest extends DbalFunctionalTestCase
         $schemaManager->createTable($owningTable);
     }
 
-    private function tearDownForeignKeyConstraintViolationExceptionTest()
+    private function tearDownForeignKeyConstraintViolationExceptionTest() : void
     {
         $schemaManager = $this->connection->getSchemaManager();
 
         $schemaManager->dropTable('owning_table');
         $schemaManager->dropTable('constraint_error_table');
+    }
+
+    private function isLinuxRoot() : bool
+    {
+        return PHP_OS === 'Linux' && posix_getpwuid(posix_geteuid())['name'] === 'root';
+    }
+
+    private function cleanupReadOnlyFile(string $filename) : void
+    {
+        if ($this->isLinuxRoot()) {
+            exec(sprintf('chattr -i %s', $filename));
+        }
+
+        chmod($filename, 0200); // make the file writable again, so it can be removed on Windows
+        unlink($filename);
     }
 }

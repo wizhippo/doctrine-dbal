@@ -3,17 +3,20 @@
 namespace Doctrine\Tests\DBAL\Driver;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Driver;
 use Doctrine\DBAL\Driver\AbstractMySQLDriver;
+use Doctrine\DBAL\Driver\ResultStatement;
+use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Platforms\MariaDb1027Platform;
 use Doctrine\DBAL\Platforms\MySQL57Platform;
 use Doctrine\DBAL\Platforms\MySQL80Platform;
 use Doctrine\DBAL\Platforms\MySqlPlatform;
+use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use Doctrine\DBAL\Schema\MySqlSchemaManager;
-use Doctrine\Tests\Mocks\DriverResultStatementMock;
 
 class AbstractMySQLDriverTest extends AbstractDriverTest
 {
-    public function testReturnsDatabaseName()
+    public function testReturnsDatabaseName() : void
     {
         parent::testReturnsDatabaseName();
 
@@ -23,7 +26,7 @@ class AbstractMySQLDriverTest extends AbstractDriverTest
             'password' => 'bar',
         ];
 
-        $statement = $this->createMock(DriverResultStatementMock::class);
+        $statement = $this->createMock(ResultStatement::class);
 
         $statement->expects($this->once())
             ->method('fetchColumn')
@@ -42,23 +45,23 @@ class AbstractMySQLDriverTest extends AbstractDriverTest
         self::assertSame($database, $this->driver->getDatabase($connection));
     }
 
-    protected function createDriver()
+    protected function createDriver() : Driver
     {
         return $this->getMockForAbstractClass(AbstractMySQLDriver::class);
     }
 
-    protected function createPlatform()
+    protected function createPlatform() : AbstractPlatform
     {
         return new MySqlPlatform();
     }
 
-    protected function createSchemaManager(Connection $connection)
+    protected function createSchemaManager(Connection $connection) : AbstractSchemaManager
     {
         return new MySqlSchemaManager($connection);
     }
 
     /**
-     * @return mixed[][]
+     * {@inheritDoc}
      */
     protected function getDatabasePlatformsForVersions() : array
     {
@@ -83,7 +86,10 @@ class AbstractMySQLDriverTest extends AbstractDriverTest
         ];
     }
 
-    protected function getExceptionConversionData()
+    /**
+     * {@inheritDoc}
+     */
+    protected static function getExceptionConversionData() : array
     {
         return [
             self::EXCEPTION_CONNECTION => [

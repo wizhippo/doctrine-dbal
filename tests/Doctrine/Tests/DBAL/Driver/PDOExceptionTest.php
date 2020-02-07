@@ -4,7 +4,7 @@ namespace Doctrine\Tests\DBAL\Driver;
 
 use Doctrine\DBAL\Driver\PDOException;
 use Doctrine\Tests\DbalTestCase;
-use PHPUnit_Framework_MockObject_MockObject;
+use PHPUnit\Framework\MockObject\MockObject;
 use function extension_loaded;
 
 class PDOExceptionTest extends DbalTestCase
@@ -25,11 +25,11 @@ class PDOExceptionTest extends DbalTestCase
     /**
      * The wrapped PDO exception mock.
      *
-     * @var \PDOException|PHPUnit_Framework_MockObject_MockObject
+     * @var \PDOException|MockObject
      */
     private $wrappedException;
 
-    protected function setUp()
+    protected function setUp() : void
     {
         if (! extension_loaded('PDO')) {
             $this->markTestSkipped('PDO is not installed.');
@@ -44,27 +44,27 @@ class PDOExceptionTest extends DbalTestCase
         $this->exception = new PDOException($this->wrappedException);
     }
 
-    public function testReturnsCode()
+    public function testReturnsCode() : void
     {
         self::assertSame(self::SQLSTATE, $this->exception->getCode());
     }
 
-    public function testReturnsErrorCode()
+    public function testReturnsErrorCode() : void
     {
         self::assertSame(self::ERROR_CODE, $this->exception->getErrorCode());
     }
 
-    public function testReturnsMessage()
+    public function testReturnsMessage() : void
     {
         self::assertSame(self::MESSAGE, $this->exception->getMessage());
     }
 
-    public function testReturnsSQLState()
+    public function testReturnsSQLState() : void
     {
         self::assertSame(self::SQLSTATE, $this->exception->getSQLState());
     }
 
-    public function testOriginalExceptionIsInChain()
+    public function testOriginalExceptionIsInChain() : void
     {
         self::assertSame($this->wrappedException, $this->exception->getPrevious());
     }

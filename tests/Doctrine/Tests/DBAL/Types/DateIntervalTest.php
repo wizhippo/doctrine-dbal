@@ -4,16 +4,17 @@ namespace Doctrine\Tests\DBAL\Types;
 
 use DateInterval;
 use DateTime;
+use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Types\ConversionException;
 use Doctrine\DBAL\Types\DateIntervalType;
 use Doctrine\DBAL\Types\Type;
-use Doctrine\Tests\DBAL\Mocks\MockPlatform;
 use Doctrine\Tests\DbalTestCase;
+use PHPUnit\Framework\MockObject\MockObject;
 use stdClass;
 
 final class DateIntervalTest extends DbalTestCase
 {
-    /** @var MockPlatform */
+    /** @var AbstractPlatform|MockObject */
     private $platform;
 
     /** @var DateIntervalType */
@@ -24,7 +25,7 @@ final class DateIntervalTest extends DbalTestCase
      */
     protected function setUp() : void
     {
-        $this->platform = new MockPlatform();
+        $this->platform = $this->createMock(AbstractPlatform::class);
         $this->type     = Type::getType('dateinterval');
 
         self::assertInstanceOf(DateIntervalType::class, $this->type);
@@ -102,6 +103,8 @@ final class DateIntervalTest extends DbalTestCase
     }
 
     /**
+     * @param mixed $value
+     *
      * @dataProvider invalidPHPValuesProvider
      */
     public function testInvalidTypeConversionToDatabaseValue($value) : void
@@ -114,7 +117,7 @@ final class DateIntervalTest extends DbalTestCase
     /**
      * @return mixed[][]
      */
-    public function invalidPHPValuesProvider() : array
+    public static function invalidPHPValuesProvider() : iterable
     {
         return [
             [0],
@@ -124,7 +127,6 @@ final class DateIntervalTest extends DbalTestCase
             ['2015-01-31'],
             ['2015-01-31 10:11:12'],
             [new stdClass()],
-            [$this],
             [27],
             [-1],
             [1.2],

@@ -9,7 +9,7 @@ use function extension_loaded;
 
 class StatementTest extends DbalFunctionalTestCase
 {
-    protected function setUp()
+    protected function setUp() : void
     {
         if (! extension_loaded('sqlsrv')) {
             self::markTestSkipped('sqlsrv is not installed.');
@@ -24,7 +24,7 @@ class StatementTest extends DbalFunctionalTestCase
         self::markTestSkipped('sqlsrv only test');
     }
 
-    public function testFailureToPrepareResultsInException()
+    public function testFailureToPrepareResultsInException() : void
     {
         // use the driver connection directly to avoid having exception wrapped
         $stmt = $this->connection->getWrappedConnection()->prepare(null);
